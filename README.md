@@ -28,8 +28,8 @@
 - 샘플 목업 생성 스크립트: [docs/generate_mockup.py](docs/generate_mockup.py)
 
 ## 설치 및 실행 방법 (배포용 개요)
-1. **APK 설치**: 기기에 `com.ridipaper.weather` APK 설치 (`adb install -r ...`)
-2. **트리거 EPUB 배치**: GitHub에 공개되는 `날씨 대시보드.epub` 파일을 기기의 `/sdcard/Books/` (리디북스 서재 폴더)에 복사
+1. **트리거 EPUB 다운로드**: 저장소 최상단의 [WeatherDashboard.epub](WeatherDashboard.epub) 파일을 다운로드해 기기의 `/sdcard/Books/` (리디북스 서재 폴더)에 복사
+2. **APK 설치**: 기기에 `com.ridipaper.weather` APK 설치 (`adb install -r ...`)
 3. **권한 부여 및 실행**: 리디북스 서재에서 `날씨 대시보드` 책 아이콘을 열면 대시보드 실행 (최초 1회 SuperSU 루트 권한 허용 필요)
 4. **서재 복귀**: 대시보드 우측 상단 `[닫기]` 또는 기기 뒤로가기 버튼으로 리디북스 서재로 즉시 복귀
 
