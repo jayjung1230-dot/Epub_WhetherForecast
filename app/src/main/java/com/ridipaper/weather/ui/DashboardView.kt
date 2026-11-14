@@ -1,17 +1,26 @@
 package com.ridipaper.weather.ui
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.view.MotionEvent
 import android.view.View
 import com.ridipaper.weather.data.SettingsStore
 import com.ridipaper.weather.data.WeatherRepository
+import com.ridipaper.weather.model.BookItem
 import com.ridipaper.weather.model.DashboardSettings
+import com.ridipaper.weather.model.EconomyIndicator
+import com.ridipaper.weather.model.MovieItem
 import com.ridipaper.weather.model.NewsItem
+import com.ridipaper.weather.model.PageType
 import com.ridipaper.weather.model.QuoteItem
 import com.ridipaper.weather.model.WeatherData
 import com.ridipaper.weather.util.LunarCalendar
@@ -27,8 +36,6 @@ class DashboardView(context: Context) : View(context) {
         fun onRegionClick()
         fun onSettingsClick()
         fun onRefreshClick()
-        fun onQuoteRefreshClick()
-        fun onNewsRefreshClick()
         fun onCloseClick()
         fun onPrevPageClick()
         fun onNextPageClick()
@@ -40,7 +47,14 @@ class DashboardView(context: Context) : View(context) {
     private var mainQuote: QuoteItem? = null
     private var subQuote: QuoteItem? = null
     private var newsList: List<NewsItem> = emptyList()
-    private var currentPage: Int = 0
+    private var bookItem: BookItem? = null
+    private var movieItem: MovieItem? = null
+    private var economyList: List<EconomyIndicator> = emptyList()
+    private var bookBitmap: Bitmap? = null
+    private var movieBitmap: Bitmap? = null
+    private var activePageType: PageType = PageType.WEATHER
+    private var pageNumber: Int = 1
+    private var totalPages: Int = 6
     private var settings: DashboardSettings = DashboardSettings()
     private var wifiConnected: Boolean = false
     private var statusMessage: String? = null
@@ -56,8 +70,10 @@ class DashboardView(context: Context) : View(context) {
     private val btnCloseRect = RectF()
     private val btnPrevPageRect = RectF()
     private val btnNextPageRect = RectF()
-    private val btnQuoteRefreshRect = RectF()
-    private val btnNewsRefreshRect = RectF()
+
+    private val monoPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+        colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
+    }
 
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.BLACK
@@ -81,7 +97,14 @@ class DashboardView(context: Context) : View(context) {
         mainQuote: QuoteItem?,
         subQuote: QuoteItem?,
         news: List<NewsItem>,
-        currentPage: Int,
+        book: BookItem?,
+        movie: MovieItem?,
+        economy: List<EconomyIndicator>,
+        bookBitmap: Bitmap?,
+        movieBitmap: Bitmap?,
+        activePageType: PageType,
+        pageNumber: Int,
+        totalPages: Int,
         settings: DashboardSettings,
         wifiConnected: Boolean,
         remainingMinutes: Int,
@@ -91,7 +114,14 @@ class DashboardView(context: Context) : View(context) {
         this.mainQuote = mainQuote
         this.subQuote = subQuote
         this.newsList = news
-        this.currentPage = currentPage
+        this.bookItem = book
+        this.movieItem = movie
+        this.economyList = economy
+        this.bookBitmap = bookBitmap
+        this.movieBitmap = movieBitmap
+        this.activePageType = activePageType
+        this.pageNumber = pageNumber
+        this.totalPages = totalPages
         this.settings = settings
         this.wifiConnected = wifiConnected
         this.keepAliveRemainingMinutes = remainingMinutes
@@ -106,8 +136,6 @@ class DashboardView(context: Context) : View(context) {
             when {
                 btnCloseRect.contains(x, y) -> listener?.onCloseClick()
                 btnRefreshRect.contains(x, y) -> listener?.onRefreshClick()
-                btnQuoteRefreshRect.contains(x, y) -> listener?.onQuoteRefreshClick()
-                btnNewsRefreshRect.contains(x, y) -> listener?.onNewsRefreshClick()
                 btnSettingsRect.contains(x, y) -> listener?.onSettingsClick()
                 btnRegionRect.contains(x, y) -> listener?.onRegionClick()
                 btnPrevPageRect.contains(x, y) -> listener?.onPrevPageClick()
@@ -124,8 +152,6 @@ class DashboardView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.drawColor(Color.WHITE)
-        btnQuoteRefreshRect.setEmpty()
-        btnNewsRefreshRect.setEmpty()
 
         val screenW = width.toFloat()
         val screenH = height.toFloat()
@@ -354,10 +380,13 @@ class DashboardView(context: Context) : View(context) {
             canvas.drawText(badge, badgeRect.centerX() - bw / 2f, metTop + 149f * s, textPaint)
         }
 
-        when (currentPage) {
-            1 -> drawQuotesPage(canvas, w, m, s)
-            2 -> drawNewsPage(canvas, w, m, s)
-            else -> drawWeatherLowerSection(canvas, data, w, m, s)
+        when (activePageType) {
+            PageType.QUOTES -> drawQuotesPage(canvas, w, m, s)
+            PageType.NEWS -> drawNewsPage(canvas, w, m, s)
+            PageType.BOOK -> drawBookPage(canvas, w, m, s)
+            PageType.MOVIE -> drawMoviePage(canvas, w, m, s)
+            PageType.ECONOMY -> drawEconomyPage(canvas, w, m, s)
+            PageType.WEATHER -> drawWeatherLowerSection(canvas, data, w, m, s)
         }
 
         drawFooter(canvas, w, m, s)
@@ -632,12 +661,6 @@ class DashboardView(context: Context) : View(context) {
             textPaint
         )
 
-        val btnSize = 44f * s
-        val refRect = RectF(w - m - 32f * s - btnSize, boxTop + 22f * s, w - m - 32f * s, boxTop + 22f * s + btnSize)
-        btnQuoteRefreshRect.set(refRect)
-        drawCard(canvas, refRect, 12f * s, Color.rgb(245, 245, 245), 2f * s)
-        drawRefreshIcon(canvas, refRect.centerX(), refRect.centerY(), 12f * s, s)
-
         val catLabel = if (isEn) {
             q1?.categoryEn?.ifBlank { "Classic Quote" } ?: "Classic Quote"
         } else {
@@ -646,7 +669,7 @@ class DashboardView(context: Context) : View(context) {
         textPaint.typeface = Typeface.DEFAULT_BOLD
         textPaint.textSize = 22f * s
         val catW = textPaint.measureText(catLabel) + 36f * s
-        val tagRect = RectF(refRect.left - 12f * s - catW, boxTop + 22f * s, refRect.left - 12f * s, boxTop + 66f * s)
+        val tagRect = RectF(w - m - 32f * s - catW, boxTop + 22f * s, w - m - 32f * s, boxTop + 66f * s)
         drawCard(canvas, tagRect, 12f * s, Color.rgb(24, 24, 24), 2f * s)
         textPaint.color = Color.WHITE
         canvas.drawText(catLabel, tagRect.left + 18f * s, boxTop + 52f * s, textPaint)
@@ -756,17 +779,11 @@ class DashboardView(context: Context) : View(context) {
         textPaint.textSize = 32f * s
         canvas.drawText(if (isEn) "Top News Headlines" else "주요 뉴스 헤드라인", m + 36f * s, boxTop + 56f * s, textPaint)
 
-        val btnSize = 44f * s
-        val refRect = RectF(w - m - 32f * s - btnSize, boxTop + 22f * s, w - m - 32f * s, boxTop + 22f * s + btnSize)
-        btnNewsRefreshRect.set(refRect)
-        drawCard(canvas, refRect, 12f * s, Color.rgb(245, 245, 245), 2f * s)
-        drawRefreshIcon(canvas, refRect.centerX(), refRect.centerY(), 12f * s, s)
-
         textPaint.color = Color.rgb(85, 85, 85)
         textPaint.typeface = Typeface.DEFAULT
         textPaint.textSize = 23f * s
         val srcInfo = if (isEn) "Google News · $cc" else "Google 뉴스 · $cc"
-        canvas.drawText(srcInfo, refRect.left - 16f * s - textPaint.measureText(srcInfo), boxTop + 52f * s, textPaint)
+        canvas.drawText(srcInfo, w - m - 36f * s - textPaint.measureText(srcInfo), boxTop + 54f * s, textPaint)
 
         strokePaint.color = Color.rgb(160, 160, 160)
         strokePaint.strokeWidth = 2f * s
@@ -928,12 +945,15 @@ class DashboardView(context: Context) : View(context) {
         textPaint.textSize = 23f * s
         canvas.drawText(footer, m, 1826f * s, textPaint)
 
-        val pageName = when (currentPage) {
-            1 -> if (isEn) "Quotes" else "오늘의 명언"
-            2 -> if (isEn) "News" else "주요 뉴스"
-            else -> if (isEn) "Weather" else "날씨 예보"
+        val pageName = when (activePageType) {
+            PageType.QUOTES -> if (isEn) "Quotes" else "오늘의 명언"
+            PageType.NEWS -> if (isEn) "News" else "주요 뉴스"
+            PageType.BOOK -> if (isEn) "Book Pick" else "책 추천"
+            PageType.MOVIE -> if (isEn) "Movie Pick" else "영화 소개"
+            PageType.ECONOMY -> if (isEn) "Economy" else "주요 경제지표"
+            PageType.WEATHER -> if (isEn) "Weather" else "날씨 예보"
         }
-        val ind = "◀  ${currentPage + 1} / 3 · $pageName  ▶"
+        val ind = "◀  $pageNumber / $totalPages · $pageName  ▶"
         textPaint.color = Color.BLACK
         textPaint.typeface = Typeface.DEFAULT_BOLD
         textPaint.textSize = 24f * s
@@ -980,17 +1000,437 @@ class DashboardView(context: Context) : View(context) {
         return leftX
     }
 
-    private fun drawRefreshIcon(canvas: Canvas, cx: Float, cy: Float, r: Float, s: Float) {
-        strokePaint.color = Color.BLACK
-        strokePaint.strokeWidth = 2.8f * s
-        val oval = RectF(cx - r, cy - r, cx + r, cy + r)
-        canvas.drawArc(oval, -50f, 285f, false, strokePaint)
+    private fun drawBookPage(canvas: Canvas, w: Float, m: Float, s: Float) {
+        val isEn = settings.language == "en"
+        val boxTop = 906f * s
+        val boxBot = 1776f * s
+        drawCard(canvas, RectF(m, boxTop, w - m, boxBot), 24f * s, Color.WHITE, 3f * s)
 
-        // Arrowhead at -50 deg (top-right)
-        val ax = cx + r * kotlin.math.cos(Math.toRadians(-50.0)).toFloat()
-        val ay = cy + r * kotlin.math.sin(Math.toRadians(-50.0)).toFloat()
-        val tip = 6.5f * s
-        canvas.drawLine(ax, ay, ax - tip, ay - 2f * s, strokePaint)
-        canvas.drawLine(ax, ay, ax + 1.5f * s, ay - tip, strokePaint)
+        textPaint.color = Color.BLACK
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 32f * s
+        canvas.drawText(if (isEn) "Today's Book Pick" else "오늘의 책 추천", m + 36f * s, boxTop + 56f * s, textPaint)
+
+        val bk = bookItem
+        val genre = if (isEn) (bk?.genreEn ?: "Book") else (bk?.genreKo ?: "도서")
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 21f * s
+        val gw = textPaint.measureText(genre) + 32f * s
+        val gRect = RectF(w - m - 32f * s - gw, boxTop + 22f * s, w - m - 32f * s, boxTop + 66f * s)
+        drawCard(canvas, gRect, 12f * s, Color.rgb(24, 24, 24), 2f * s)
+        textPaint.color = Color.WHITE
+        canvas.drawText(genre, gRect.left + 16f * s, boxTop + 52f * s, textPaint)
+
+        strokePaint.color = Color.rgb(160, 160, 160)
+        strokePaint.strokeWidth = 2f * s
+        canvas.drawLine(m + 28f * s, boxTop + 84f * s, w - m - 28f * s, boxTop + 84f * s, strokePaint)
+
+        if (bk == null) {
+            textPaint.color = Color.rgb(80, 80, 80)
+            textPaint.typeface = Typeface.DEFAULT
+            textPaint.textSize = 32f * s
+            canvas.drawText(if (isEn) "Loading book pick..." else "추천 도서를 불러오는 중입니다...", m + 64f * s, boxTop + 260f * s, textPaint)
+            return
+        }
+
+        // Left Book Cover
+        val covX1 = m + 48f * s
+        val covY1 = boxTop + 124f * s
+        val covW = 330f * s
+        val covH = 480f * s
+        val covX2 = covX1 + covW
+        val covY2 = covY1 + covH
+
+        drawCard(canvas, RectF(covX1 + 10f * s, covY1 + 10f * s, covX2 + 10f * s, covY2 + 10f * s), 12f * s, Color.rgb(210, 210, 210), 1f * s)
+        drawCard(canvas, RectF(covX1, covY1, covX2, covY2), 12f * s, Color.rgb(244, 244, 244), 3f * s)
+
+        val bmp = bookBitmap
+        if (bmp != null && !bmp.isRecycled) {
+            val dest = RectF(covX1 + 12f * s, covY1 + 12f * s, covX2 - 12f * s, covY2 - 12f * s)
+            canvas.drawBitmap(bmp, Rect(0, 0, bmp.width, bmp.height), dest, monoPaint)
+            strokePaint.color = Color.BLACK
+            strokePaint.strokeWidth = 2f * s
+            canvas.drawRect(dest, strokePaint)
+        } else {
+            // Stylized monochrome book cover fallback
+            strokePaint.color = Color.rgb(120, 120, 120)
+            strokePaint.strokeWidth = 2f * s
+            canvas.drawLine(covX1 + 22f * s, covY1 + 4f * s, covX1 + 22f * s, covY2 - 4f * s, strokePaint)
+
+            val artBox = RectF(covX1 + 44f * s, covY1 + 36f * s, covX2 - 26f * s, covY1 + 270f * s)
+            fillPaint.color = Color.rgb(30, 30, 30)
+            fillPaint.style = Paint.Style.FILL
+            canvas.drawRect(artBox, fillPaint)
+            fillPaint.color = Color.rgb(245, 245, 245)
+            canvas.drawCircle(covX1 + 195f * s, covY1 + 99f * s, 35f * s, fillPaint)
+            val m1 = Path().apply {
+                moveTo(covX1 + 46f * s, covY1 + 268f * s)
+                lineTo(covX1 + 135f * s, covY1 + 150f * s)
+                lineTo(covX1 + 215f * s, covY1 + 268f * s)
+                close()
+            }
+            fillPaint.color = Color.rgb(130, 130, 130)
+            canvas.drawPath(m1, fillPaint)
+            val m2 = Path().apply {
+                moveTo(covX1 + 145f * s, covY1 + 268f * s)
+                lineTo(covX1 + 235f * s, covY1 + 172f * s)
+                lineTo(covX2 - 28f * s, covY1 + 268f * s)
+                close()
+            }
+            fillPaint.color = Color.rgb(185, 185, 185)
+            canvas.drawPath(m2, fillPaint)
+
+            val coverTitle = if (isEn) bk.titleEn else bk.titleKo
+            textPaint.color = Color.BLACK
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            textPaint.textSize = 30f * s
+            var cty = covY1 + 324f * s
+            for (tl in wrapText(coverTitle, textPaint, covW - 76f * s).take(2)) {
+                canvas.drawText(tl, covX1 + 44f * s, cty, textPaint)
+                cty += 40f * s
+            }
+            strokePaint.color = Color.rgb(140, 140, 140)
+            strokePaint.strokeWidth = 2f * s
+            canvas.drawLine(covX1 + 44f * s, covY1 + 402f * s, covX2 - 34f * s, covY1 + 402f * s, strokePaint)
+            textPaint.color = Color.rgb(60, 60, 60)
+            textPaint.typeface = Typeface.DEFAULT
+            textPaint.textSize = 20f * s
+            val authorShort = (if (isEn) bk.authorEn else bk.authorKo).substringBefore("·").trim()
+            canvas.drawText(ellipsizeText(authorShort, textPaint, covW - 76f * s), covX1 + 44f * s, covY1 + 438f * s, textPaint)
+        }
+
+        // Right Book Details
+        val rx = covX2 + 52f * s
+        val maxRw = w - m - 44f * s - rx
+        textPaint.color = Color.BLACK
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 40f * s
+        canvas.drawText(ellipsizeText(if (isEn) bk.titleEn else bk.titleKo, textPaint, maxRw), rx, covY1 + 38f * s, textPaint)
+
+        textPaint.color = Color.rgb(75, 75, 75)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 24f * s
+        val authLine = "${if (isEn) bk.authorEn else bk.authorKo} · ${bk.publisherYear}"
+        canvas.drawText(ellipsizeText(authLine, textPaint, maxRw), rx, covY1 + 84f * s, textPaint)
+
+        val chips = listOf(bk.rating, genre, if (isEn) bk.pagesTimeEn else bk.pagesTimeKo)
+        var tx = rx
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 20f * s
+        for (tg in chips) {
+            val tw = textPaint.measureText(tg) + 28f * s
+            if (tx + tw > w - m - 36f * s) break
+            drawCard(canvas, RectF(tx, covY1 + 114f * s, tx + tw, covY1 + 152f * s), 8f * s, Color.rgb(240, 240, 240), 2f * s)
+            textPaint.color = Color.rgb(20, 20, 20)
+            canvas.drawText(tg, tx + 14f * s, covY1 + 140f * s, textPaint)
+            tx += tw + 12f * s
+        }
+
+        textPaint.color = Color.rgb(20, 20, 20)
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 24f * s
+        canvas.drawText(if (isEn) "■ About & Why Read" else "■ 책 소개 & 추천 이유", rx, covY1 + 206f * s, textPaint)
+
+        textPaint.color = Color.rgb(45, 45, 45)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 24f * s
+        var cy = covY1 + 248f * s
+        for (line in wrapText(if (isEn) bk.summaryEn else bk.summaryKo, textPaint, maxRw).take(4)) {
+            canvas.drawText(line, rx, cy, textPaint)
+            cy += 34f * s
+        }
+
+        val qTop = covY1 + 392f * s
+        drawCard(canvas, RectF(rx, qTop, w - m - 44f * s, covY2), 14f * s, Color.rgb(246, 246, 246), 2f * s)
+        textPaint.color = Color.rgb(80, 80, 80)
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 20f * s
+        canvas.drawText(if (isEn) "Notable Line" else "책 속의 한 문장", rx + 22f * s, qTop + 32f * s, textPaint)
+
+        textPaint.color = Color.BLACK
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 24f * s
+        val qStr = "“${if (isEn) bk.quoteEn else bk.quoteKo}”"
+        canvas.drawText(ellipsizeText(qStr, textPaint, maxRw - 44f * s), rx + 22f * s, qTop + 68f * s, textPaint)
+
+        strokePaint.color = Color.rgb(210, 210, 210)
+        strokePaint.strokeWidth = 2f * s
+        canvas.drawLine(m + 48f * s, boxBot - 104f * s, w - m - 48f * s, boxBot - 104f * s, strokePaint)
+        textPaint.color = Color.rgb(70, 70, 70)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 23f * s
+        val kwPrefix = if (isEn) "· Keywords: " else "· 추천 키워드: "
+        canvas.drawText(kwPrefix + (if (isEn) bk.keywordsEn else bk.keywordsKo), m + 48f * s, boxBot - 52f * s, textPaint)
+    }
+
+    private fun drawMoviePage(canvas: Canvas, w: Float, m: Float, s: Float) {
+        val isEn = settings.language == "en"
+        val boxTop = 906f * s
+        val boxBot = 1776f * s
+        drawCard(canvas, RectF(m, boxTop, w - m, boxBot), 24f * s, Color.WHITE, 3f * s)
+
+        textPaint.color = Color.BLACK
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 32f * s
+        canvas.drawText(if (isEn) "Today's Movie Spotlight" else "오늘의 영화 소개", m + 36f * s, boxTop + 56f * s, textPaint)
+
+        val mv = movieItem
+        val genre = if (isEn) (mv?.genreEn ?: "Movie") else (mv?.genreKo ?: "영화")
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 21f * s
+        val gw = textPaint.measureText(genre) + 32f * s
+        val gRect = RectF(w - m - 32f * s - gw, boxTop + 22f * s, w - m - 32f * s, boxTop + 66f * s)
+        drawCard(canvas, gRect, 12f * s, Color.rgb(24, 24, 24), 2f * s)
+        textPaint.color = Color.WHITE
+        canvas.drawText(genre, gRect.left + 16f * s, boxTop + 52f * s, textPaint)
+
+        strokePaint.color = Color.rgb(160, 160, 160)
+        strokePaint.strokeWidth = 2f * s
+        canvas.drawLine(m + 28f * s, boxTop + 84f * s, w - m - 28f * s, boxTop + 84f * s, strokePaint)
+
+        if (mv == null) {
+            textPaint.color = Color.rgb(80, 80, 80)
+            textPaint.typeface = Typeface.DEFAULT
+            textPaint.textSize = 32f * s
+            canvas.drawText(if (isEn) "Loading movie spotlight..." else "영화 소개를 불러오는 중입니다...", m + 64f * s, boxTop + 260f * s, textPaint)
+            return
+        }
+
+        // Left Movie Poster
+        val px1 = m + 48f * s
+        val py1 = boxTop + 124f * s
+        val pw = 330f * s
+        val ph = 480f * s
+        val px2 = px1 + pw
+        val py2 = py1 + ph
+        drawCard(canvas, RectF(px1, py1, px2, py2), 14f * s, Color.rgb(22, 22, 22), 3f * s)
+
+        val bmp = movieBitmap
+        if (bmp != null && !bmp.isRecycled) {
+            val dest = RectF(px1 + 10f * s, py1 + 10f * s, px2 - 10f * s, py2 - 10f * s)
+            canvas.drawBitmap(bmp, Rect(0, 0, bmp.width, bmp.height), dest, monoPaint)
+        } else {
+            // Film perforations
+            fillPaint.color = Color.rgb(235, 235, 235)
+            fillPaint.style = Paint.Style.FILL
+            var fx = px1 + 22f * s
+            while (fx < px2 - 22f * s) {
+                canvas.drawRect(fx, py1 + 12f * s, fx + 18f * s, py1 + 22f * s, fillPaint)
+                canvas.drawRect(fx, py2 - 22f * s, fx + 18f * s, py2 - 12f * s, fillPaint)
+                fx += 34f * s
+            }
+            // Stylized sun/moon + mountains
+            fillPaint.color = Color.rgb(235, 235, 235)
+            canvas.drawCircle(px1 + 165f * s, py1 + 138f * s, 58f * s, fillPaint)
+            val m1 = Path().apply {
+                moveTo(px1 + 16f * s, py1 + 310f * s)
+                lineTo(px1 + 125f * s, py1 + 185f * s)
+                lineTo(px1 + 240f * s, py1 + 310f * s)
+                close()
+            }
+            fillPaint.color = Color.rgb(120, 120, 120)
+            canvas.drawPath(m1, fillPaint)
+            val m2 = Path().apply {
+                moveTo(px1 + 120f * s, py1 + 310f * s)
+                lineTo(px1 + 245f * s, py1 + 205f * s)
+                lineTo(px2 - 16f * s, py1 + 310f * s)
+                close()
+            }
+            fillPaint.color = Color.rgb(165, 165, 165)
+            canvas.drawPath(m2, fillPaint)
+
+            textPaint.color = Color.WHITE
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            textPaint.textSize = 38f * s
+            canvas.drawText(mv.posterTitleTop, px1 + 30f * s, py1 + 368f * s, textPaint)
+            canvas.drawText(mv.posterTitleBottom, px1 + 30f * s, py1 + 414f * s, textPaint)
+            textPaint.color = Color.rgb(195, 195, 195)
+            textPaint.typeface = Typeface.DEFAULT
+            textPaint.textSize = 18f * s
+            canvas.drawText(ellipsizeText(mv.originalTitleYear, textPaint, pw - 60f * s), px1 + 30f * s, py1 + 446f * s, textPaint)
+        }
+
+        // Right Movie Details
+        val rx = px2 + 52f * s
+        val maxRw = w - m - 44f * s - rx
+        textPaint.color = Color.BLACK
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 38f * s
+        canvas.drawText(ellipsizeText(if (isEn) mv.titleEn else mv.titleKo, textPaint, maxRw), rx, py1 + 38f * s, textPaint)
+
+        textPaint.color = Color.rgb(80, 80, 80)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 24f * s
+        canvas.drawText(ellipsizeText(mv.originalTitleYear, textPaint, maxRw), rx, py1 + 82f * s, textPaint)
+
+        val chips = listOf(
+            mv.rating,
+            if (isEn) mv.directorEn else mv.directorKo,
+            if (isEn) mv.runtimeRatingEn else mv.runtimeRatingKo
+        )
+        var cx = rx
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 20f * s
+        for (ch in chips) {
+            val tw = textPaint.measureText(ch) + 28f * s
+            if (cx + tw > w - m - 36f * s) break
+            drawCard(canvas, RectF(cx, py1 + 110f * s, cx + tw, py1 + 148f * s), 8f * s, Color.rgb(240, 240, 240), 2f * s)
+            textPaint.color = Color.rgb(20, 20, 20)
+            canvas.drawText(ch, cx + 14f * s, py1 + 136f * s, textPaint)
+            cx += tw + 12f * s
+        }
+
+        textPaint.color = Color.rgb(20, 20, 20)
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 24f * s
+        canvas.drawText(if (isEn) "■ Synopsis & Highlights" else "■ 작품 줄거리 & 감상 포인트", rx, py1 + 202f * s, textPaint)
+
+        textPaint.color = Color.rgb(45, 45, 45)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 24f * s
+        var cy = py1 + 244f * s
+        for (line in wrapText(if (isEn) mv.synopsisEn else mv.synopsisKo, textPaint, maxRw).take(4)) {
+            canvas.drawText(line, rx, cy, textPaint)
+            cy += 34f * s
+        }
+
+        val qTop = py1 + 392f * s
+        drawCard(canvas, RectF(rx, qTop, w - m - 44f * s, py2), 14f * s, Color.rgb(246, 246, 246), 2f * s)
+        textPaint.color = Color.rgb(80, 80, 80)
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 20f * s
+        canvas.drawText(if (isEn) "Why Watch" else "추천 관람 포인트", rx + 22f * s, qTop + 32f * s, textPaint)
+
+        textPaint.color = Color.BLACK
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 23f * s
+        canvas.drawText(ellipsizeText(if (isEn) mv.highlightEn else mv.highlightKo, textPaint, maxRw - 44f * s), rx + 22f * s, qTop + 68f * s, textPaint)
+
+        strokePaint.color = Color.rgb(210, 210, 210)
+        strokePaint.strokeWidth = 2f * s
+        canvas.drawLine(m + 48f * s, boxBot - 104f * s, w - m - 48f * s, boxBot - 104f * s, strokePaint)
+        textPaint.color = Color.rgb(70, 70, 70)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 23f * s
+        canvas.drawText("· " + (if (isEn) mv.castOttEn else mv.castOttKo), m + 48f * s, boxBot - 52f * s, textPaint)
+    }
+
+    private fun drawEconomyPage(canvas: Canvas, w: Float, m: Float, s: Float) {
+        val isEn = settings.language == "en"
+        val boxTop = 906f * s
+        val boxBot = 1776f * s
+        drawCard(canvas, RectF(m, boxTop, w - m, boxBot), 24f * s, Color.WHITE, 3f * s)
+
+        textPaint.color = Color.BLACK
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 32f * s
+        canvas.drawText(if (isEn) "Key Economic Indicators" else "주요 경제지표", m + 36f * s, boxTop + 56f * s, textPaint)
+
+        textPaint.color = Color.rgb(85, 85, 85)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 22f * s
+        val sub = if (isEn) "7-Day Trend" else "최근 7일 추이 · 기준"
+        canvas.drawText(sub, w - m - 36f * s - textPaint.measureText(sub), boxTop + 54f * s, textPaint)
+
+        strokePaint.color = Color.rgb(160, 160, 160)
+        strokePaint.strokeWidth = 2f * s
+        canvas.drawLine(m + 28f * s, boxTop + 84f * s, w - m - 28f * s, boxTop + 84f * s, strokePaint)
+
+        if (economyList.isEmpty()) {
+            textPaint.color = Color.rgb(80, 80, 80)
+            textPaint.typeface = Typeface.DEFAULT
+            textPaint.textSize = 32f * s
+            canvas.drawText(if (isEn) "Loading indicators..." else "경제지표를 불러오는 중입니다...", m + 64f * s, boxTop + 260f * s, textPaint)
+            return
+        }
+
+        val cols = 2
+        val rows = 3
+        val gapX = 24f * s
+        val gapY = 22f * s
+        val padX = 36f * s
+        val padTop = 108f * s
+        val padBot = 28f * s
+        val cardW = (w - 2f * m - 2f * padX - gapX) / cols
+        val cardH = (boxBot - boxTop - padTop - padBot - gapY * (rows - 1)) / rows
+
+        val count = minOf(economyList.size, 6)
+        for (idx in 0 until count) {
+            val ind = economyList[idx]
+            val r = idx / cols
+            val c = idx % cols
+            val x1 = m + padX + c * (cardW + gapX)
+            val y1 = boxTop + padTop + r * (cardH + gapY)
+            val x2 = x1 + cardW
+            val y2 = y1 + cardH
+
+            drawCard(canvas, RectF(x1, y1, x2, y2), 18f * s, Color.rgb(249, 249, 249), 2f * s)
+
+            textPaint.color = Color.rgb(55, 55, 55)
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            textPaint.textSize = 24f * s
+            canvas.drawText(if (isEn) ind.nameEn else ind.nameKo, x1 + 24f * s, y1 + 42f * s, textPaint)
+
+            textPaint.color = Color.BLACK
+            textPaint.textSize = 40f * s
+            canvas.drawText(ind.valueStr, x1 + 24f * s, y1 + 98f * s, textPaint)
+
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            textPaint.textSize = 19f * s
+            val dw = textPaint.measureText(ind.diffStr) + 24f * s
+            val diffRect = RectF(x1 + 24f * s, y1 + 116f * s, minOf(x1 + 24f * s + dw, x1 + 286f * s), y1 + 150f * s)
+            drawCard(canvas, diffRect, 8f * s, if (ind.isUp) Color.rgb(24, 24, 24) else Color.rgb(232, 232, 232), 2f * s)
+            textPaint.color = if (ind.isUp) Color.WHITE else Color.rgb(20, 20, 20)
+            canvas.drawText(ellipsizeText(ind.diffStr, textPaint, diffRect.width() - 16f * s), diffRect.left + 12f * s, y1 + 140f * s, textPaint)
+
+            // Sparkline graph on right side
+            val gx1 = x1 + 310f * s
+            val gy1 = y1 + 28f * s
+            val gx2 = x2 - 26f * s
+            val gy2 = y2 - 28f * s
+            drawCard(canvas, RectF(gx1 - 12f * s, gy1 - 10f * s, gx2 + 12f * s, gy2 + 10f * s), 12f * s, Color.WHITE, 1f * s)
+
+            if (ind.history.size >= 2) {
+                val sMin = ind.history.minOrNull() ?: 0f
+                val sMax = ind.history.maxOrNull() ?: 1f
+                val sSpan = maxOf(0.0001f, sMax - sMin)
+                val ptsX = FloatArray(ind.history.size)
+                val ptsY = FloatArray(ind.history.size)
+                for (i in ind.history.indices) {
+                    ptsX[i] = gx1 + i * (gx2 - gx1) / (ind.history.size - 1)
+                    ptsY[i] = gy2 - ((ind.history[i] - sMin) / sSpan) * (gy2 - gy1)
+                }
+
+                // Dashed baseline
+                val midY = (gy1 + gy2) / 2f
+                strokePaint.color = Color.rgb(220, 220, 220)
+                strokePaint.strokeWidth = 1f * s
+                var bx = gx1
+                while (bx < gx2) {
+                    canvas.drawLine(bx, midY, minOf(bx + 4f * s, gx2), midY, strokePaint)
+                    bx += 10f * s
+                }
+
+                strokePaint.color = Color.rgb(20, 20, 20)
+                strokePaint.strokeWidth = 4f * s
+                for (i in 0 until ind.history.size - 1) {
+                    canvas.drawLine(ptsX[i], ptsY[i], ptsX[i + 1], ptsY[i + 1], strokePaint)
+                }
+                for (i in ind.history.indices) {
+                    if (i == ind.history.lastIndex) {
+                        fillPaint.color = Color.BLACK
+                        fillPaint.style = Paint.Style.FILL
+                        canvas.drawCircle(ptsX[i], ptsY[i], 6f * s, fillPaint)
+                    } else {
+                        fillPaint.color = Color.WHITE
+                        fillPaint.style = Paint.Style.FILL
+                        canvas.drawCircle(ptsX[i], ptsY[i], 3f * s, fillPaint)
+                        strokePaint.color = Color.rgb(40, 40, 40)
+                        strokePaint.strokeWidth = 2f * s
+                        canvas.drawCircle(ptsX[i], ptsY[i], 3f * s, strokePaint)
+                    }
+                }
+            }
+        }
     }
 }

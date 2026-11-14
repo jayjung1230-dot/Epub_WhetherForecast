@@ -54,10 +54,25 @@ object WeatherRepository {
         }
 
         return try {
-            fetchFromOpenMeteo(locName, isAuto, lat, lon, countryCode)
+            fetchFromOpenMeteo(locName, isAuto, lat, lon, countryCode, lang)
         } catch (_: Exception) {
             try {
-                fetchFromWttr(locName, isAuto, countryCode, lat, lon, lang)
+                val wttr = fetchFromWttr(locName, isAuto, countryCode, lat, lon, lang)
+                if (wttr.daily.size < 7) {
+                    val met = try {
+                        fetchFromMetNo(locName, isAuto, countryCode, lat, lon, lang)
+                    } catch (_: Exception) { null }
+                    if (met != null && met.daily.size > wttr.daily.size) {
+                        val existingDates = wttr.daily.map { it.dateLabel }.toHashSet()
+                        val merged = ArrayList(wttr.daily)
+                        for (d in met.daily) {
+                            if (merged.size >= 7) break
+                            if (d.dateLabel !in existingDates) merged.add(d)
+                        }
+                        return wttr.copy(daily = merged)
+                    }
+                }
+                wttr
             } catch (_: Exception) {
                 fetchFromMetNo(locName, isAuto, countryCode, lat, lon, lang)
             }
@@ -90,18 +105,20 @@ object WeatherRepository {
         isAuto: Boolean,
         lat: Double,
         lon: Double,
-        countryCode: String = "KR"
+        countryCode: String = "KR",
+        lang: String = "ko"
     ): WeatherData {
-        val forecastUrl = "https://api.open-meteo.com/v1/forecast" +
+        val isEn = lang == "en"
+        val forecastUrl = "http://api.open-meteo.com/v1/forecast" +
             "?latitude=$lat&longitude=$lon" +
             "&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m" +
             "&hourly=temperature_2m,weather_code,precipitation_probability,uv_index" +
             "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset" +
-            "&wind_speed_unit=ms&past_days=1&timezone=Asia%2FSeoul"
+            "&wind_speed_unit=ms&past_days=1&forecast_days=7&timezone=Asia%2FSeoul"
 
         val forecastJson = JSONObject(httpGet(forecastUrl))
 
-        val aqUrl = "https://air-quality-api.open-meteo.com/v1/air-quality" +
+        val aqUrl = "http://air-quality-api.open-meteo.com/v1/air-quality" +
             "?latitude=$lat&longitude=$lon&current=pm10,pm2_5"
         var pm10: Double? = null
         var pm25: Double? = null
@@ -204,14 +221,18 @@ object WeatherRepository {
         val sunset = extractTimeHHmm(dSunset.optString(todayIdx, ""))
 
         val dailyList = ArrayList<DailyItem>(7)
-        val sdfIn = SimpleDateFormat("yyyy-MM-dd", Locale.KOREA)
-        val dayNames = arrayOf("일", "월", "화", "수", "목", "금", "토")
+        val sdfIn = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val dayNames = if (isEn) {
+            arrayOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+        } else {
+            arrayOf("일", "월", "화", "수", "목", "금", "토")
+        }
         val cal = Calendar.getInstance()
         for (i in todayIdx until minOf(dTimes.length(), todayIdx + 7)) {
             val dateStr = dTimes.getString(i)
             val parsed: Date? = try { sdfIn.parse(dateStr) } catch (_: Exception) { null }
             val dayLabel = if (i == todayIdx) {
-                "오늘"
+                if (isEn) "Today" else "오늘"
             } else if (parsed != null) {
                 cal.time = parsed
                 dayNames[cal.get(Calendar.DAY_OF_WEEK) - 1]

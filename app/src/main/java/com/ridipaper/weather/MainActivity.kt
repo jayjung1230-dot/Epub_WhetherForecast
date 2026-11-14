@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
 import android.os.Bundle
@@ -20,14 +21,19 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.Spinner
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import com.ridipaper.weather.data.ContentRepository
 import com.ridipaper.weather.data.RegionStore
 import com.ridipaper.weather.data.SettingsStore
 import com.ridipaper.weather.data.WeatherRepository
+import com.ridipaper.weather.model.BookItem
 import com.ridipaper.weather.model.DashboardSettings
+import com.ridipaper.weather.model.EconomyIndicator
+import com.ridipaper.weather.model.MovieItem
 import com.ridipaper.weather.model.NewsItem
+import com.ridipaper.weather.model.PageType
 import com.ridipaper.weather.model.QuoteItem
 import com.ridipaper.weather.model.WeatherData
 import com.ridipaper.weather.service.LibraryWatcherService
@@ -39,7 +45,6 @@ class MainActivity : Activity(), DashboardView.Listener {
     companion object {
         const val EXTRA_FROM_LIBRARY = "from_library"
         private const val TICK_MS = 30L * 1000L
-        private const val PAGE_COUNT = 3
     }
 
     private lateinit var dashboardView: DashboardView
@@ -49,8 +54,24 @@ class MainActivity : Activity(), DashboardView.Listener {
     private var mainQuote: QuoteItem? = null
     private var subQuote: QuoteItem? = null
     private var newsList: List<NewsItem> = emptyList()
+    private var bookItem: BookItem? = null
+    private var movieItem: MovieItem? = null
+    private var economyList: List<EconomyIndicator> = emptyList()
+    private var bookBitmap: Bitmap? = null
+    private var movieBitmap: Bitmap? = null
     private var currentPage: Int = 0
     private var wakeLock: PowerManager.WakeLock? = null
+
+    private fun enabledPages(): List<PageType> {
+        val list = ArrayList<PageType>(6)
+        list.add(PageType.WEATHER) // Always fixed ON
+        if (settings.showQuotesPage) list.add(PageType.QUOTES)
+        if (settings.showNewsPage) list.add(PageType.NEWS)
+        if (settings.showBookPage) list.add(PageType.BOOK)
+        if (settings.showMoviePage) list.add(PageType.MOVIE)
+        if (settings.showEconomyPage) list.add(PageType.ECONOMY)
+        return list
+    }
 
     private val handler = Handler(Looper.getMainLooper())
     private var keepAliveDeadlineMs: Long = 0L
@@ -68,10 +89,12 @@ class MainActivity : Activity(), DashboardView.Listener {
             if (isWifiConnected() && now - lastFetchMs >= refreshMs) {
                 refreshWeather(force = false)
             }
+            val pageCount = enabledPages().size
             if (settings.pageAutoRotateMinutes > 0 &&
+                pageCount > 1 &&
                 now - lastPageChangeMs >= settings.pageAutoRotateMinutes * 60_000L
             ) {
-                currentPage = (currentPage + 1) % PAGE_COUNT
+                currentPage = (currentPage + 1) % pageCount
                 lastPageChangeMs = now
             }
             render()
@@ -189,12 +212,21 @@ class MainActivity : Activity(), DashboardView.Listener {
     }
 
     private fun render(statusMsg: String? = null) {
+        val pages = enabledPages()
+        if (currentPage >= pages.size) currentPage = 0
         dashboardView.updateState(
             weather = currentWeather,
             mainQuote = mainQuote,
             subQuote = subQuote,
             news = newsList,
-            currentPage = currentPage,
+            book = bookItem,
+            movie = movieItem,
+            economy = economyList,
+            bookBitmap = bookBitmap,
+            movieBitmap = movieBitmap,
+            activePageType = pages[currentPage],
+            pageNumber = currentPage + 1,
+            totalPages = pages.size,
             settings = settings,
             wifiConnected = isWifiConnected(),
             remainingMinutes = remainingMinutes(),
@@ -236,6 +268,12 @@ class MainActivity : Activity(), DashboardView.Listener {
                 null
             }
 
+            val fetchedBook = ContentRepository.fetchBook()
+            val fetchedBookBmp = ContentRepository.fetchBitmap(fetchedBook.coverUrl)
+            val fetchedMovie = ContentRepository.fetchMovie()
+            val fetchedMovieBmp = ContentRepository.fetchBitmap(fetchedMovie.posterUrl)
+            val fetchedEconomy = ContentRepository.fetchEconomyIndicators()
+
             handler.post {
                 isFetching = false
                 if (fetchedWeather != null) {
@@ -248,6 +286,13 @@ class MainActivity : Activity(), DashboardView.Listener {
                 }
                 if (fetchedNews != null && fetchedNews.isNotEmpty()) {
                     newsList = fetchedNews
+                }
+                bookItem = fetchedBook
+                if (fetchedBookBmp != null) bookBitmap = fetchedBookBmp
+                movieItem = fetchedMovie
+                if (fetchedMovieBmp != null) movieBitmap = fetchedMovieBmp
+                if (fetchedEconomy.isNotEmpty()) {
+                    economyList = fetchedEconomy
                 }
                 if (weatherErr != null && fetchedWeather == null) {
                     val errPrefix = if (snapshot.language == "en") "Update failed: " else "갱신 실패: "
@@ -262,14 +307,16 @@ class MainActivity : Activity(), DashboardView.Listener {
 
     override fun onPrevPageClick() {
         resetKeepScreenOnTimer()
-        currentPage = (currentPage - 1 + PAGE_COUNT) % PAGE_COUNT
+        val count = enabledPages().size
+        currentPage = (currentPage - 1 + count) % count
         lastPageChangeMs = System.currentTimeMillis()
         render()
     }
 
     override fun onNextPageClick() {
         resetKeepScreenOnTimer()
-        currentPage = (currentPage + 1) % PAGE_COUNT
+        val count = enabledPages().size
+        currentPage = (currentPage + 1) % count
         lastPageChangeMs = System.currentTimeMillis()
         render()
     }
@@ -277,50 +324,6 @@ class MainActivity : Activity(), DashboardView.Listener {
     override fun onRefreshClick() {
         resetKeepScreenOnTimer()
         refreshWeather(force = true)
-    }
-
-    override fun onQuoteRefreshClick() {
-        resetKeepScreenOnTimer()
-        val lang = settings.language
-        val currentText = mainQuote?.textKo
-        var pair = ContentRepository.fetchQuotes(lang)
-        if (pair.first.textKo == currentText) {
-            pair = pair.second to pair.first
-        }
-        mainQuote = pair.first
-        subQuote = pair.second
-        render()
-    }
-
-    override fun onNewsRefreshClick() {
-        resetKeepScreenOnTimer()
-        if (!isWifiConnected()) {
-            val msg = if (settings.language == "en") {
-                "Wi-Fi is disconnected. Connect to refresh news."
-            } else {
-                "Wi-Fi 연결 후 뉴스를 새로고침할 수 있습니다."
-            }
-            render(msg)
-            return
-        }
-        val snapshot = settings
-        val cc = currentWeather?.countryCode ?: snapshot.manualCountryCode.ifBlank { "KR" }
-        render(if (snapshot.language == "en") "Refreshing news..." else "뉴스 새로고침 중...")
-        thread {
-            val fetched = try {
-                ContentRepository.fetchNews(cc, snapshot.language)
-            } catch (_: Exception) {
-                null
-            }
-            handler.post {
-                if (fetched != null && fetched.isNotEmpty()) {
-                    newsList = fetched
-                    render()
-                } else {
-                    render(if (snapshot.language == "en") "Failed to refresh news." else "뉴스를 불러오지 못했습니다.")
-                }
-            }
-        }
     }
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
@@ -667,6 +670,51 @@ class MainActivity : Activity(), DashboardView.Listener {
         addRow(makeLabel(if (isEn) "World Clock 1" else "세계시간 1"), spinnerWc1)
         addRow(makeLabel(if (isEn) "World Clock 2" else "세계시간 2"), spinnerWc2)
 
+        // Page visibility section (Weather fixed ON, other pages toggleable)
+        val div = android.view.View(this).apply {
+            setBackgroundColor(android.graphics.Color.rgb(180, 180, 180))
+        }
+        val divLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
+            topMargin = dp(8)
+            bottomMargin = dp(8)
+        }
+        container.addView(div, divLp)
+
+        val secHeader = TextView(this).apply {
+            text = if (isEn) "Lower Pages (Weather Fixed ON)" else "하단 페이지 표시 (날씨 고정 · 선택 토글)"
+            textSize = 15f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setTextColor(android.graphics.Color.BLACK)
+            setPadding(0, dp(2), 0, dp(6))
+        }
+        container.addView(secHeader)
+
+        val fixedLabel = TextView(this).apply {
+            text = if (isEn) "Fixed ON" else "고정 ON"
+            textSize = 14f
+            setTextColor(android.graphics.Color.rgb(90, 90, 90))
+            gravity = Gravity.END
+        }
+        addRow(makeLabel(if (isEn) "Hourly & 7-Day Weather" else "시간별 · 주간 날씨"), fixedLabel)
+
+        fun makeSwitch(checked: Boolean): Switch {
+            return Switch(this).apply {
+                isChecked = checked
+            }
+        }
+
+        val swQuotes = makeSwitch(settings.showQuotesPage)
+        val swNews = makeSwitch(settings.showNewsPage)
+        val swBook = makeSwitch(settings.showBookPage)
+        val swMovie = makeSwitch(settings.showMoviePage)
+        val swEconomy = makeSwitch(settings.showEconomyPage)
+
+        addRow(makeLabel(if (isEn) "Daily Quotes" else "오늘의 명언 (영화·애니 포함)"), swQuotes)
+        addRow(makeLabel(if (isEn) "Top News Headlines" else "주요 뉴스 헤드라인"), swNews)
+        addRow(makeLabel(if (isEn) "Today's Book Pick" else "오늘의 책 추천"), swBook)
+        addRow(makeLabel(if (isEn) "Today's Movie Spotlight" else "오늘의 영화 소개"), swMovie)
+        addRow(makeLabel(if (isEn) "Key Economic Indicators" else "주요 경제지표 (그래프)"), swEconomy)
+
         val scrollView = ScrollView(this).apply {
             addView(container)
         }
@@ -691,7 +739,12 @@ class MainActivity : Activity(), DashboardView.Listener {
                     brightnessPercent = seekBar.progress * 10,
                     worldClock1 = chosenWc1,
                     worldClock2 = chosenWc2,
-                    language = chosenLang
+                    language = chosenLang,
+                    showQuotesPage = swQuotes.isChecked,
+                    showNewsPage = swNews.isChecked,
+                    showBookPage = swBook.isChecked,
+                    showMoviePage = swMovie.isChecked,
+                    showEconomyPage = swEconomy.isChecked
                 )
                 settingsStore.save(settings)
                 lastPageChangeMs = System.currentTimeMillis()

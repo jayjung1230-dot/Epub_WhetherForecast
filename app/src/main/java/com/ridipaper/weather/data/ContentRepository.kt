@@ -1,7 +1,14 @@
 package com.ridipaper.weather.data
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import com.ridipaper.weather.model.BookItem
+import com.ridipaper.weather.model.EconomyIndicator
+import com.ridipaper.weather.model.MovieItem
 import com.ridipaper.weather.model.NewsItem
 import com.ridipaper.weather.model.QuoteItem
+import java.net.HttpURLConnection
+import java.net.URL
 import org.json.JSONArray
 import org.json.JSONObject
 import org.xmlpull.v1.XmlPullParser
@@ -434,6 +441,345 @@ object ContentRepository {
             listOf("미국", "중국", "일본", "유럽", "트럼프", "러시아", "이란", "우크라", "글로벌").any { title.contains(it) } -> "국제"
             listOf("날씨", "기온", "태풍", "폭염", "한파", "건강", "의료", "병원", "학교").any { title.contains(it) } -> "사회"
             else -> "주요"
+        }
+    }
+
+    private val CURATED_BOOKS = listOf(
+        BookItem(
+            titleKo = "물고기는 존재하지 않는다",
+            titleEn = "Why Fish Don't Exist",
+            authorKo = "룰루 밀러 (Lulu Miller) · 곰출판",
+            authorEn = "Lulu Miller · Simon & Schuster",
+            publisherYear = "2021",
+            genreKo = "과학 에세이",
+            genreEn = "Science Memoir",
+            rating = "★ 4.8 / 5.0",
+            pagesTimeKo = "300쪽 · 완독 4시간",
+            pagesTimeEn = "300p · ~4h read",
+            summaryKo = "과학 전문 기자 룰루 밀러가 집착에 가까운 열정으로 '질서'를 세우려 했던 분류학자 데이비드 스타 조던의 삶을 추적하며, 우리가 당연하게 믿어온 세상의 기준과 삶의 의미를 다시 묻는 매혹적인 논픽션입니다.",
+            summaryEn = "Science journalist Lulu Miller traces the life of taxonomist David Starr Jordan, weaving biography and memoir into a gripping meditation on chaos, obsession, and resilience.",
+            quoteKo = "혼돈은 우리가 생각하는 것보다 훨씬 자비롭다.",
+            quoteEn = "Chaos is much more merciful than we think.",
+            keywordsKo = "#질서와혼돈  #자기이해  #주말독서",
+            keywordsEn = "#ChaosAndOrder  #Memoir  #Science",
+            coverUrl = "http://covers.openlibrary.org/b/isbn/9781501160271-M.jpg"
+        ),
+        BookItem(
+            titleKo = "아몬드",
+            titleEn = "Almond",
+            authorKo = "손원평 · 창비",
+            authorEn = "Won-pyung Sohn · HarperVia",
+            publisherYear = "2017",
+            genreKo = "한국 소설",
+            genreEn = "Korean Fiction",
+            rating = "★ 4.7 / 5.0",
+            pagesTimeKo = "264쪽 · 완독 3시간",
+            pagesTimeEn = "264p · ~3h read",
+            summaryKo = "감정을 느끼지 못하는 소년 윤재가 세상과 부딪히며 타인의 마음을 배우고 성장해 가는 과정을 담백하면서도 강렬한 문체로 그려낸 현대 소설입니다.",
+            summaryEn = "Born with alexithymia, young Yunjae navigates grief, unlikely friendship, and what it truly means to feel and connect with others.",
+            quoteKo = "멀리서 보면 비극이지만 가까이서 보면 희극이 아니라, 그냥 삶일 뿐이다.",
+            quoteEn = "Love makes a monster into a human, and a human into a monster.",
+            keywordsKo = "#공감과성장  #청소년문학  #몰입감",
+            keywordsEn = "#Empathy  #ComingOfAge  #Fiction",
+            coverUrl = "http://covers.openlibrary.org/b/isbn/9780062961372-M.jpg"
+        ),
+        BookItem(
+            titleKo = "사피엔스",
+            titleEn = "Sapiens",
+            authorKo = "유발 하라리 (Yuval Noah Harari) · 김영사",
+            authorEn = "Yuval Noah Harari · Harper",
+            publisherYear = "2015",
+            genreKo = "인문 · 역사",
+            genreEn = "History · Big Ideas",
+            rating = "★ 4.8 / 5.0",
+            pagesTimeKo = "636쪽 · 완독 9시간",
+            pagesTimeEn = "464p · ~8h read",
+            summaryKo = "변방의 유인원이었던 호모 사피엔스가 어떻게 인지 혁명, 농업 혁명, 과학 혁명을 거쳐 지구의 지배자가 되었는지 거시적인 시선으로 탐구하는 인류 문명사입니다.",
+            summaryEn = "From foraging bands to the digital age, Harari explores how shared myths, cooperation, and science shaped human civilization.",
+            quoteKo = "역사는 소수의 사람만이 아니라 우리가 믿는 이야기로 만들어진다.",
+            quoteEn = "Large numbers of strangers can cooperate successfully by believing in common myths.",
+            keywordsKo = "#인류사  #인문학필독  #거시적통찰",
+            keywordsEn = "#HumanHistory  #BigIdeas  #Nonfiction",
+            coverUrl = "http://covers.openlibrary.org/b/isbn/9780062316097-M.jpg"
+        ),
+        BookItem(
+            titleKo = "프로젝트 헤일메리",
+            titleEn = "Project Hail Mary",
+            authorKo = "앤디 위어 (Andy Weir) · 알에이치코리아",
+            authorEn = "Andy Weir · Ballantine Books",
+            publisherYear = "2021",
+            genreKo = "SF 소설",
+            genreEn = "Sci-Fi Thriller",
+            rating = "★ 4.9 / 5.0",
+            pagesTimeKo = "648쪽 · 완독 8시간",
+            pagesTimeEn = "496p · ~7h read",
+            summaryKo = "기억을 잃은 채 우주선에서 깨어난 중학교 과학 교사 라일랜드 그레이스가 멸망 위기에 처한 지구를 구하기 위해 치밀한 과학 추론과 뜻밖의 우정을 펼쳐 나가는 SF 대작입니다.",
+            summaryEn = "Waking up alone on a spacecraft light-years from Earth, Ryland Grace must solve an extinction-level mystery with science and an unexpected ally.",
+            quoteKo = "두려움은 문제를 해결해 주지 않는다. 한 번에 하나씩 계산할 뿐이다.",
+            quoteEn = "Science doesn't care what you believe; it only cares about what works.",
+            keywordsKo = "#우주SF  #지적쾌감  #우정과희망",
+            keywordsEn = "#SpaceSciFi  #ProblemSolving  #PageTurner",
+            coverUrl = "http://covers.openlibrary.org/b/isbn/9780593135204-M.jpg"
+        ),
+        BookItem(
+            titleKo = "아주 작은 습관의 힘",
+            titleEn = "Atomic Habits",
+            authorKo = "제임스 클리어 (James Clear) · 비즈니스북스",
+            authorEn = "James Clear · Avery",
+            publisherYear = "2019",
+            genreKo = "자기계발",
+            genreEn = "Self-Improvement",
+            rating = "★ 4.8 / 5.0",
+            pagesTimeKo = "400쪽 · 완독 5시간",
+            pagesTimeEn = "320p · ~5h read",
+            summaryKo = "거창한 목표보다 매일 1%의 작은 개선과 환경 설계가 어떻게 복리 효과를 만들어 삶을 근본적으로 바꾸는지 구체적인 행동 과학으로 설명합니다.",
+            summaryEn = "Tiny 1% improvements compound into remarkable results when you focus on systems, identity, and environment design.",
+            quoteKo = "목표의 수준까지 올라가는 것이 아니라, 시스템의 수준까지 떨어진다.",
+            quoteEn = "You do not rise to the level of your goals. You fall to the level of your systems.",
+            keywordsKo = "#습관설계  #실행력  #루틴",
+            keywordsEn = "#Habits  #Systems  #Productivity",
+            coverUrl = "http://covers.openlibrary.org/b/isbn/9780735211292-M.jpg"
+        ),
+        BookItem(
+            titleKo = "미드나잇 라이브러리",
+            titleEn = "The Midnight Library",
+            authorKo = "매트 헤이그 (Matt Haig) · 인플루엔셜",
+            authorEn = "Matt Haig · Viking",
+            publisherYear = "2021",
+            genreKo = "영미 소설",
+            genreEn = "Contemporary Fiction",
+            rating = "★ 4.6 / 5.0",
+            pagesTimeKo = "408쪽 · 완독 5시간",
+            pagesTimeEn = "304p · ~4.5h read",
+            summaryKo = "삶의 경계에 선 주인공 노라가 '내가 다른 선택을 했더라면'이라는 수많은 평행 우주의 삶을 책으로 꺼내 읽어보며 지금 이 순간의 가치를 깨닫는 따뜻한 판타지 소설입니다.",
+            summaryEn = "Between life and death lies a library of infinite books, each offering Nora Seed a chance to live out the choices she never made.",
+            quoteKo = "후회는 우리가 보지 못한 가능성을 비추는 그림자일 뿐이다.",
+            quoteEn = "It is easy to mourn the lives we aren't living.",
+            keywordsKo = "#인생의선택  #위로와회복  #베스트셀러",
+            keywordsEn = "#SecondChances  #WarmFiction  #Reflection",
+            coverUrl = "http://covers.openlibrary.org/b/isbn/9780525559474-M.jpg"
+        )
+    )
+
+    private val CURATED_MOVIES = listOf(
+        MovieItem(
+            titleKo = "월터의 상상은 현실이 된다",
+            titleEn = "The Secret Life of Walter Mitty",
+            originalTitleYear = "The Secret Life of Walter Mitty (2013)",
+            directorKo = "감독: 벤 스틸러",
+            directorEn = "Dir. Ben Stiller",
+            genreKo = "드라마 · 모험",
+            genreEn = "Drama · Adventure",
+            rating = "★ IMDb 7.3",
+            runtimeRatingKo = "114분 · 전체관람가",
+            runtimeRatingEn = "114m · PG",
+            synopsisKo = "잡지사 '라이프'에서 16년째 필름을 관리하며 소심한 일상을 보내던 월터가, 폐간호 표지용 마지막 필름을 찾기 위해 그린란드와 아이슬란드, 히말라야로 직접 떠나며 진짜 삶을 마주하는 이야기입니다.",
+            synopsisEn = "Daydreamer Walter Mitty steps out of his quiet photo-archive routine and crosses Greenland, Iceland, and the Himalayas in search of a missing negative.",
+            highlightKo = "광활한 아이슬란드 풍경과 가슴 뛰는 OST, 용기의 메시지",
+            highlightEn = "Breathtaking Iceland landscapes, uplifting soundtrack, and quiet courage",
+            castOttKo = "출연: 벤 스틸러, 크리스틴 위그, 숀 펜  |  OTT 스트리밍 추천",
+            castOttEn = "Cast: Ben Stiller, Kristen Wiig, Sean Penn  |  Feel-Good Classic",
+            posterTitleTop = "WALTER",
+            posterTitleBottom = "MITTY"
+        ),
+        MovieItem(
+            titleKo = "어바웃 타임",
+            titleEn = "About Time",
+            originalTitleYear = "About Time (2013)",
+            directorKo = "감독: 리처드 커티스",
+            directorEn = "Dir. Richard Curtis",
+            genreKo = "로맨스 · 드라마",
+            genreEn = "Romance · Drama",
+            rating = "★ IMDb 7.8",
+            runtimeRatingKo = "123분 · 15세관람가",
+            runtimeRatingEn = "123m · R",
+            synopsisKo = "시간을 되돌릴 수 있는 가문의 비밀을 알게 된 팀이 사랑과 가족의 소중함을 배워가며, 결국 평범한 오늘 하루를 두 번째로 사는 마음으로 살아가는 법을 깨닫는 작품입니다.",
+            synopsisEn = "Tim discovers he can travel back in his own timeline, learning that happiness lies not in fixing every flaw, but in cherishing ordinary days.",
+            highlightKo = "평범한 일상을 다시 바라보게 만드는 따뜻한 여운",
+            highlightEn = "A heartfelt reminder to savor every ordinary day as a gift",
+            castOttKo = "출연: 도널 글리슨, 레이첼 맥아담스, 빌 나이  |  인생 영화",
+            castOttEn = "Cast: Domhnall Gleeson, Rachel McAdams, Bill Nighy",
+            posterTitleTop = "ABOUT",
+            posterTitleBottom = "TIME"
+        ),
+        MovieItem(
+            titleKo = "인턴",
+            titleEn = "The Intern",
+            originalTitleYear = "The Intern (2015)",
+            directorKo = "감독: 낸시 마이어스",
+            directorEn = "Dir. Nancy Meyers",
+            genreKo = "코미디 · 드라마",
+            genreEn = "Comedy · Drama",
+            rating = "★ IMDb 7.1",
+            runtimeRatingKo = "121분 · 12세관람가",
+            runtimeRatingEn = "121m · PG-13",
+            synopsisKo = "은퇴 후 시니어 인턴으로 패션 스타트업에 합류한 70세 벤이, 바쁘고 치열한 젊은 대표 줄스와 세대를 뛰어넘는 신뢰와 우정을 쌓아가는 유쾌하고 따뜻한 이야기입니다.",
+            synopsisEn = "Seventy-year-old widower Ben joins an online fashion startup as a senior intern, bringing calm wisdom to driven founder Jules.",
+            highlightKo = "경험에서 우러나는 품격과 세대 간 따뜻한 연대",
+            highlightEn = "Timeless grace, mentorship, and cross-generational warmth",
+            castOttKo = "출연: 로버트 드 니로, 앤 해서웨이  |  주말 힐링 추천",
+            castOttEn = "Cast: Robert De Niro, Anne Hathaway  |  Warm Workplace Drama",
+            posterTitleTop = "THE",
+            posterTitleBottom = "INTERN"
+        ),
+        MovieItem(
+            titleKo = "인터스텔라",
+            titleEn = "Interstellar",
+            originalTitleYear = "Interstellar (2014)",
+            directorKo = "감독: 크리스토퍼 놀란",
+            directorEn = "Dir. Christopher Nolan",
+            genreKo = "SF · 드라마",
+            genreEn = "Sci-Fi · Drama",
+            rating = "★ IMDb 8.7",
+            runtimeRatingKo = "169분 · 12세관람가",
+            runtimeRatingEn = "169m · PG-13",
+            synopsisKo = "식량난에 직면한 미래의 지구에서 인류의 새로운 터전을 찾기 위해 웜홀 너머 미지의 은하로 떠난 탐사대와, 지구에 남은 가족의 애틋한 시간을 그린 장대한 SF 서사시입니다.",
+            synopsisEn = "With Earth's future fading, former pilot Cooper journeys through a wormhole to find a habitable world while racing against relativistic time.",
+            highlightKo = "압도적인 우주 시각미와 한스 짐머의 웅장한 파이프 오르간 선율",
+            highlightEn = "Awe-inspiring astrophysics, Hans Zimmer's score, and father-daughter bond",
+            castOttKo = "출연: 매튜 맥커너히, 앤 해서웨이, 제시카 차스테인  |  SF 명작",
+            castOttEn = "Cast: Matthew McConaughey, Anne Hathaway, Jessica Chastain",
+            posterTitleTop = "INTER",
+            posterTitleBottom = "STELLAR"
+        ),
+        MovieItem(
+            titleKo = "그린 북",
+            titleEn = "Green Book",
+            originalTitleYear = "Green Book (2018)",
+            directorKo = "감독: 피터 패럴리",
+            directorEn = "Dir. Peter Farrelly",
+            genreKo = "드라마 · 실화",
+            genreEn = "Drama · Biography",
+            rating = "★ IMDb 8.2",
+            runtimeRatingKo = "130분 · 12세관람가",
+            runtimeRatingEn = "130m · PG-13",
+            synopsisKo = "1962년 미국 남부 콘서트 투어에 나선 천재 피아니스트 돈 셜리와 그의 운전사 토니 발레롱가가 서로의 다름을 이해하며 편견을 넘어선 우정을 쌓아가는 실화 바탕의 로드 무비입니다.",
+            synopsisEn = "In 1962, a working-class bouncer drives renowned pianist Dr. Don Shirley through the Deep South, forging an unexpected friendship.",
+            highlightKo = "유쾌한 티키타카 속에 담긴 존중과 용기의 메시지",
+            highlightEn = "Sharp humor, soulful piano music, and dignity in the face of prejudice",
+            castOttKo = "출연: 비고 모텐슨, 마허샬라 알리  |  아카데미 작품상",
+            castOttEn = "Cast: Viggo Mortensen, Mahershala Ali  |  Oscar Best Picture",
+            posterTitleTop = "GREEN",
+            posterTitleBottom = "BOOK"
+        ),
+        MovieItem(
+            titleKo = "리틀 포레스트",
+            titleEn = "Little Forest",
+            originalTitleYear = "Little Forest (2018)",
+            directorKo = "감독: 임순례",
+            directorEn = "Dir. Yim Soon-rye",
+            genreKo = "드라마 · 힐링",
+            genreEn = "Drama · Slice of Life",
+            rating = "★ 4.5 / 5.0",
+            runtimeRatingKo = "103분 · 전체관람가",
+            runtimeRatingEn = "103m · All Ages",
+            synopsisKo = "도시 생활에 지쳐 고향으로 돌아온 혜원이 사계절의 변화 속에서 직접 농사짓고 제철 음식을 만들어 먹으며 자신만의 작은 숲을 가꾸어 가는 담백한 성장 영화입니다.",
+            synopsisEn = "Exhausted by city life, Hye-won returns to her rural hometown, cooking seasonal meals and rediscovering her own rhythm across four seasons.",
+            highlightKo = "사계절의 정갈한 음식과 마음을 쉬게 하는 조용한 여백",
+            highlightEn = "Comforting seasonal cooking and gentle breathing room for the mind",
+            castOttKo = "출연: 김태리, 류준열, 진기주  |  사계절 힐링 영화",
+            castOttEn = "Cast: Kim Tae-ri, Ryu Jun-yeol, Jin Ki-joo",
+            posterTitleTop = "LITTLE",
+            posterTitleBottom = "FOREST"
+        )
+    )
+
+    fun fetchBook(): BookItem = CURATED_BOOKS[Random.nextInt(CURATED_BOOKS.size)]
+
+    fun fetchMovie(): MovieItem = CURATED_MOVIES[Random.nextInt(CURATED_MOVIES.size)]
+
+    fun fetchBitmap(urlStr: String): Bitmap? {
+        if (urlStr.isBlank()) return null
+        return try {
+            val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 6000
+                readTimeout = 6000
+                setRequestProperty("User-Agent", "PaperProWeather/1.0")
+            }
+            if (conn.responseCode in 200..299) {
+                conn.inputStream.use { BitmapFactory.decodeStream(it) }
+            } else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private data class SymbolSpec(
+        val symbol: String,
+        val nameKo: String,
+        val nameEn: String,
+        val prefix: String,
+        val decimals: Int,
+        val fallbackVal: String,
+        val fallbackDiff: String,
+        val fallbackUp: Boolean,
+        val fallbackHistory: List<Float>
+    )
+
+    private val ECONOMY_SPECS = listOf(
+        SymbolSpec("^KS11", "코스피 (KOSPI)", "KOSPI", "", 2, "2,486.35", "▲ +18.42 (+0.75%)", true, listOf(2440f, 2455f, 2448f, 2462f, 2470f, 2468f, 2486f)),
+        SymbolSpec("^KQ11", "코스닥 (KOSDAQ)", "KOSDAQ", "", 2, "712.80", "▼ -3.15 (-0.44%)", false, listOf(726f, 722f, 719f, 721f, 715f, 716f, 713f)),
+        SymbolSpec("KRW=X", "원/달러 환율", "USD / KRW", "", 2, "1,394.50", "▲ +4.20 (+0.30%)", true, listOf(1382f, 1385f, 1388f, 1386f, 1391f, 1390f, 1395f)),
+        SymbolSpec("^GSPC", "S&P 500", "S&P 500", "", 2, "5,948.71", "▲ +24.10 (+0.41%)", true, listOf(5870f, 5895f, 5910f, 5902f, 5925f, 5924f, 5949f)),
+        SymbolSpec("^IXIC", "나스닥 (NASDAQ)", "NASDAQ", "", 2, "19,107.65", "▲ +112.4 (+0.59%)", true, listOf(18820f, 18900f, 18875f, 18960f, 19010f, 18995f, 19108f)),
+        SymbolSpec("GC=F", "국제 금 (Gold)", "Gold (oz)", "$", 1, "$2,572.4", "▼ -8.6 (-0.33%)", false, listOf(2615f, 2602f, 2595f, 2588f, 2590f, 2581f, 2572f))
+    )
+
+    fun fetchEconomyIndicators(): List<EconomyIndicator> {
+        return ECONOMY_SPECS.map { spec ->
+            fetchYahooIndicator(spec) ?: EconomyIndicator(
+                nameKo = spec.nameKo,
+                nameEn = spec.nameEn,
+                valueStr = spec.fallbackVal,
+                diffStr = spec.fallbackDiff,
+                isUp = spec.fallbackUp,
+                history = spec.fallbackHistory
+            )
+        }
+    }
+
+    private fun fetchYahooIndicator(spec: SymbolSpec): EconomyIndicator? {
+        return try {
+            val enc = URLEncoder.encode(spec.symbol, "UTF-8")
+            val url = "https://query1.finance.yahoo.com/v8/finance/chart/$enc?range=10d&interval=1d"
+            val root = JSONObject(WeatherRepository.httpGet(url))
+            val result = root.getJSONObject("chart").getJSONArray("result").getJSONObject(0)
+            val meta = result.getJSONObject("meta")
+            val closesArr = result.getJSONObject("indicators")
+                .getJSONArray("quote").getJSONObject(0).getJSONArray("close")
+
+            val closes = ArrayList<Float>()
+            for (i in 0 until closesArr.length()) {
+                if (!closesArr.isNull(i)) {
+                    closes.add(closesArr.getDouble(i).toFloat())
+                }
+            }
+            val recent = if (closes.size > 7) closes.takeLast(7) else closes
+            if (recent.size < 2) return null
+
+            val lastVal = meta.optDouble("regularMarketPrice", recent.last().toDouble())
+            val prevVal = meta.optDouble("chartPreviousClose", recent[recent.size - 2].toDouble())
+            val prevClose = if (recent.size >= 2) recent[recent.size - 2].toDouble() else prevVal
+            val diff = lastVal - prevClose
+            val pct = if (prevClose != 0.0) (diff / prevClose) * 100.0 else 0.0
+            val isUp = diff >= 0.0
+
+            val fmtPattern = if (spec.decimals == 1) "%,.1f" else "%,.2f"
+            val valStr = spec.prefix + String.format(Locale.US, fmtPattern, lastVal)
+            val sign = if (isUp) "+" else ""
+            val arrow = if (isUp) "▲" else "▼"
+            val diffStr = "$arrow $sign${String.format(Locale.US, fmtPattern, diff)} ($sign${String.format(Locale.US, "%.2f", pct)}%)"
+
+            EconomyIndicator(
+                nameKo = spec.nameKo,
+                nameEn = spec.nameEn,
+                valueStr = valStr,
+                diffStr = diffStr,
+                isUp = isUp,
+                history = recent
+            )
+        } catch (_: Exception) {
+            null
         }
     }
 }

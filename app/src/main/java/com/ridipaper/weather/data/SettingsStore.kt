@@ -35,7 +35,12 @@ class SettingsStore(context: Context) {
             manualCountryCode = prefs.getString("manual_country_code", "KR") ?: "KR",
             worldClock1 = prefs.getString("world_clock_1", "뉴욕|America/New_York") ?: "뉴욕|America/New_York",
             worldClock2 = prefs.getString("world_clock_2", "런던|Europe/London") ?: "런던|Europe/London",
-            language = validLang
+            language = validLang,
+            showQuotesPage = prefs.getBoolean("show_quotes_page", true),
+            showNewsPage = prefs.getBoolean("show_news_page", true),
+            showBookPage = prefs.getBoolean("show_book_page", true),
+            showMoviePage = prefs.getBoolean("show_movie_page", true),
+            showEconomyPage = prefs.getBoolean("show_economy_page", true)
         )
     }
 
@@ -53,6 +58,11 @@ class SettingsStore(context: Context) {
             .putString("world_clock_1", settings.worldClock1)
             .putString("world_clock_2", settings.worldClock2)
             .putString("language", if (settings.language == "en") "en" else "ko")
+            .putBoolean("show_quotes_page", settings.showQuotesPage)
+            .putBoolean("show_news_page", settings.showNewsPage)
+            .putBoolean("show_book_page", settings.showBookPage)
+            .putBoolean("show_movie_page", settings.showMoviePage)
+            .putBoolean("show_economy_page", settings.showEconomyPage)
             .apply()
     }
 
