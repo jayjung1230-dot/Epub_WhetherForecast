@@ -303,6 +303,10 @@ class MainActivity : Activity(), DashboardView.Listener {
                 panel.layoutParams = panel.layoutParams?.apply { width = targetW }
             }
         }
+        dialog.listView?.let { lv ->
+            lv.divider = android.graphics.drawable.ColorDrawable(android.graphics.Color.rgb(110, 110, 110))
+            lv.dividerHeight = dp(1).coerceAtLeast(2)
+        }
         return dialog
     }
 
