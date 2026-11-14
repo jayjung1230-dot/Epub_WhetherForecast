@@ -40,3 +40,10 @@
 ## 6. GitHub 공개 및 최종 확인 사항
 1. 저장소 루트 [WeatherDashboard.epub](WeatherDashboard.epub) 배치 및 소스코드 GitHub(`jayjung1230-dot/Epub_WhetherForecast`) 업로드 완료
 2. 재설치된 앱에 대해 기기에서 SuperSU 루트 권한 허용 팝업 승인 후, 리디북스 서재 타일에서 `날씨 대시보드` 탭 → 대시보드 자동 전환 및 `[닫기]` → 서재 복귀 동작 최종 확인
+
+## 7. 후속 기능 확장 및 E-Ink 최적화 (2026-11-14)
+- `ui/DashboardView.kt`: 00시~익일 06시 시간별 예보 및 기온 변화 그래프·현재 시간대 강조, 주간 7일 예보, 영화·애니 명대사(작품 배경/해석), 오늘의 책 추천(표지 이미지), 오늘의 영화 소개(실제 영화 포스터), 주요 경제지표(6종 시세 + 7일 추이 그래프) 구현
+- `data/ContentRepository.kt`: Open-Meteo / Google News RSS / OpenLibrary(책 표지) / `http://wsrv.nl` 프록시 기반 영화 포스터(Android 4.4.2 호환) / Yahoo Finance 경제지표 연동
+- `MainActivity.kt` & `util/SleepScreenManager.kt`:
+  - 설정 다이얼로그 E-Ink 라운드 사각형 ON/OFF 토글 스위치 적용 및 하단 페이지 선택 표시(날씨 고정, 나머지 5개 페이지 개별 ON/OFF)
+  - 화면 유지 시간 만료 시 대시보드 캡처를 `/cache/sleep/suspend.jpg`(`1404 × 1872`)로 적용하고, OFF 전환 시 원본 시스템 대기화면 및 `persist.sys.standbytype` / `sleepscreen_file_path` 설정을 복원하는 기능 구현 (타겟 기기: 리디북스 페이퍼 프로 최적화)
