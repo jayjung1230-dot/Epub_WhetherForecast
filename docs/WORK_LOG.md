@@ -31,6 +31,12 @@
   - `fetchNews(countryCode, language)`: 날씨 조회 지역의 `countryCode`와 앱 언어 조합에 맞춰 Google News RSS 자동 연동
 - `ui/DashboardView.kt` & `MainActivity.kt`: 전체 UI 한/영 전환 및 `[설정]` 내 언어 선택 추가 (언어 변경 시 즉시 재조회), 기기(`PP1A1HA178296`)에서 한국어/영어 1·2·3페이지 실측 검증 완료
 
-## 5. GitHub 공개 및 최종 확인 사항
-1. 배포용 트리거 EPUB(`날씨 대시보드.epub`) 및 APK 릴리즈 패키지 정리
+## 5. 추가 최적화 및 UI 개선 (2026-11-14)
+- `MainActivity.kt`:
+  - 하단 페이지 시간 단위 자동 전환 옵션(`사용 안 함`, `1분`, `5분`, `10분`, `30분`, `1시간`) 추가 및 수동 터치/물리 버튼 전환 시 타이머 리셋
+  - `[설정]` 다이얼로그를 2열 가로 배치(`ScrollView` + `simple_spinner_item` + `minimumWidth`)로 개편해 세로 길이를 대폭 축소하고 항목 줄바꿈 방지
+- `ui/DashboardView.kt`: 다양한 전자책 해상도 및 화면 비율(`600×800` ~ `1860×2480`)에서 비율을 유지한 중앙 정렬 스케일링 및 터치 좌표 오프셋 보정 적용
+
+## 6. GitHub 공개 및 최종 확인 사항
+1. 저장소 루트 [WeatherDashboard.epub](WeatherDashboard.epub) 배치 및 소스코드 GitHub(`jayjung1230-dot/Epub_WhetherForecast`) 업로드 완료
 2. 재설치된 앱에 대해 기기에서 SuperSU 루트 권한 허용 팝업 승인 후, 리디북스 서재 타일에서 `날씨 대시보드` 탭 → 대시보드 자동 전환 및 `[닫기]` → 서재 복귀 동작 최종 확인

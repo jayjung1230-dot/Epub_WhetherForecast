@@ -43,6 +43,10 @@ class DashboardView(context: Context) : View(context) {
     private var wifiConnected: Boolean = false
     private var statusMessage: String? = null
     private var keepAliveRemainingMinutes: Int = 60
+    private var drawOffsetX: Float = 0f
+    private var drawOffsetY: Float = 0f
+    private var drawContentW: Float = 1404f
+    private var drawContentH: Float = 1872f
 
     private val btnRegionRect = RectF()
     private val btnSettingsRect = RectF()
@@ -93,8 +97,8 @@ class DashboardView(context: Context) : View(context) {
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_UP) {
-            val x = event.x
-            val y = event.y
+            val x = event.x - drawOffsetX
+            val y = event.y - drawOffsetY
             when {
                 btnCloseRect.contains(x, y) -> listener?.onCloseClick()
                 btnRefreshRect.contains(x, y) -> listener?.onRefreshClick()
@@ -102,8 +106,8 @@ class DashboardView(context: Context) : View(context) {
                 btnRegionRect.contains(x, y) -> listener?.onRegionClick()
                 btnPrevPageRect.contains(x, y) -> listener?.onPrevPageClick()
                 btnNextPageRect.contains(x, y) -> listener?.onNextPageClick()
-                y > height * 0.50f -> {
-                    if (x < width * 0.35f) listener?.onPrevPageClick()
+                y > drawContentH * 0.50f -> {
+                    if (x < drawContentW * 0.35f) listener?.onPrevPageClick()
                     else listener?.onNextPageClick()
                 }
             }
@@ -115,11 +119,21 @@ class DashboardView(context: Context) : View(context) {
         super.onDraw(canvas)
         canvas.drawColor(Color.WHITE)
 
-        val w = width.toFloat()
-        val h = height.toFloat()
-        if (w <= 0f || h <= 0f) return
+        val screenW = width.toFloat()
+        val screenH = height.toFloat()
+        if (screenW <= 0f || screenH <= 0f) return
 
-        val s = minOf(w / 1404f, h / 1872f)
+        val s = minOf(screenW / 1404f, screenH / 1872f)
+        val w = 1404f * s
+        val contentH = 1872f * s
+        drawContentW = w
+        drawContentH = contentH
+        drawOffsetX = (screenW - w) / 2f
+        drawOffsetY = (screenH - contentH) / 2f
+
+        canvas.save()
+        canvas.translate(drawOffsetX, drawOffsetY)
+
         val m = 48f * s
         val lang = settings.language
         val isEn = lang == "en"
@@ -225,6 +239,7 @@ class DashboardView(context: Context) : View(context) {
             }
             canvas.drawText(msg, m + 60f * s, 560f * s, textPaint)
             drawFooter(canvas, w, m, s)
+            canvas.restore()
             return
         }
 
@@ -338,6 +353,7 @@ class DashboardView(context: Context) : View(context) {
         }
 
         drawFooter(canvas, w, m, s)
+        canvas.restore()
     }
 
     private fun drawWeatherLowerSection(canvas: Canvas, data: WeatherData, w: Float, m: Float, s: Float) {

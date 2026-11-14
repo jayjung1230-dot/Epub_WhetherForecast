@@ -17,6 +17,7 @@ import android.view.WindowManager
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
@@ -445,43 +446,90 @@ class MainActivity : Activity(), DashboardView.Listener {
     override fun onSettingsClick() {
         resetKeepScreenOnTimer()
         val isEn = settings.language == "en"
-        val hourChoices = arrayOf(1, 2, 3, 4, 6, 8, 12)
-        val hourLabels = hourChoices.map { if (isEn) "${it}h" else "${it}시간" }.toTypedArray()
-        val initialIdx = hourChoices.indexOf(settings.keepScreenHours).let { if (it >= 0) it else 0 }
+        val dm = resources.displayMetrics
+        fun dp(v: Int): Int = (v * dm.density + 0.5f).toInt()
+
+        fun makeAdapter(items: Array<String>): ArrayAdapter<String> {
+            return ArrayAdapter(this, android.R.layout.simple_spinner_item, items).apply {
+                setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            }
+        }
+
+        fun makeSpinner(items: Array<String>, selectedIdx: Int): Spinner {
+            return Spinner(this).apply {
+                adapter = makeAdapter(items)
+                setSelection(selectedIdx)
+                setPadding(dp(4), 0, dp(4), 0)
+            }
+        }
+
+        fun makeLabel(text: String): TextView {
+            return TextView(this).apply {
+                this.text = text
+                textSize = 15f
+                setTextColor(android.graphics.Color.BLACK)
+                setSingleLine(true)
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }
+        }
 
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(48, 32, 48, 24)
+            minimumWidth = (dm.widthPixels * 0.84f).toInt()
+            setPadding(dp(18), dp(10), dp(18), dp(8))
+        }
+
+        fun addRow(label: TextView, control: android.view.View) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(4), 0, dp(4))
+            }
+            val labelLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.45f).apply {
+                rightMargin = dp(8)
+            }
+            val ctrlLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.55f)
+            row.addView(label, labelLp)
+            row.addView(control, ctrlLp)
+            container.addView(row)
         }
 
         val langChoices = arrayOf("ko", "en")
         val langLabels = arrayOf("한국어 (Korean)", "English")
         val langIdx = langChoices.indexOf(settings.language).let { if (it >= 0) it else 0 }
-        val tvLang = TextView(this).apply {
-            text = if (isEn) "Language" else "언어 (Language)"
-            textSize = 16f
-        }
-        val spinnerLang = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, langLabels)
-            setSelection(langIdx)
-        }
+        val spinnerLang = makeSpinner(langLabels, langIdx)
+        addRow(makeLabel(if (isEn) "Language" else "언어 (Language)"), spinnerLang)
 
-        val tvKeep = TextView(this).apply {
-            text = if (isEn) "Keep Screen On (1-12h)" else "화면 유지 시간 (기기 절전 무시, 1~12시간)"
-            textSize = 16f
-            setPadding(0, 24, 0, 4)
+        val hourChoices = arrayOf(1, 2, 3, 4, 6, 8, 12)
+        val hourLabels = hourChoices.map { if (isEn) "${it}h" else "${it}시간" }.toTypedArray()
+        val initialIdx = hourChoices.indexOf(settings.keepScreenHours).let { if (it >= 0) it else 0 }
+        val spinner = makeSpinner(hourLabels, initialIdx)
+        addRow(makeLabel(if (isEn) "Keep Screen On" else "화면 유지 시간"), spinner)
+
+        val refreshChoices = arrayOf(30, 60, 120, 180, 360)
+        val refreshLabels = if (isEn) {
+            arrayOf("30 min", "1 hour", "2 hours", "3 hours", "6 hours")
+        } else {
+            arrayOf("30분", "1시간", "2시간", "3시간", "6시간")
         }
-        val spinner = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, hourLabels)
-            setSelection(initialIdx)
+        val refreshIdx = refreshChoices.indexOf(settings.refreshIntervalMinutes).let { if (it >= 0) it else 0 }
+        val spinnerRefresh = makeSpinner(refreshLabels, refreshIdx)
+        addRow(makeLabel(if (isEn) "Auto Refresh (Wi-Fi)" else "업데이트 주기 (Wi-Fi)"), spinnerRefresh)
+
+        val rotateChoices = arrayOf(0, 1, 5, 10, 30, 60)
+        val rotateLabels = if (isEn) {
+            arrayOf("Off", "1 min", "5 min", "10 min", "30 min", "1 hour")
+        } else {
+            arrayOf("사용 안 함", "1분마다", "5분마다", "10분마다", "30분마다", "1시간마다")
         }
+        val rotateIdx = rotateChoices.indexOf(settings.pageAutoRotateMinutes).let { if (it >= 0) it else 0 }
+        val spinnerRotate = makeSpinner(rotateLabels, rotateIdx)
+        addRow(makeLabel(if (isEn) "Auto Page Switch" else "하단 페이지 자동 전환"), spinnerRotate)
 
         val initialBrightStep = ((settings.brightnessPercent + 5) / 10).coerceIn(0, 10)
-        val tvBright = TextView(this).apply {
-            text = if (isEn) "Brightness: ${initialBrightStep * 10}%" else "디스플레이 밝기: ${initialBrightStep * 10}%"
-            textSize = 16f
-            setPadding(0, 28, 0, 12)
-        }
+        val tvBright = makeLabel(
+            if (isEn) "Brightness: ${initialBrightStep * 10}%" else "디스플레이 밝기: ${initialBrightStep * 10}%"
+        )
         val seekBar = SeekBar(this).apply {
             max = 10
             progress = initialBrightStep
@@ -495,6 +543,7 @@ class MainActivity : Activity(), DashboardView.Listener {
                 override fun onStopTrackingTouch(sb: SeekBar?) {}
             })
         }
+        addRow(tvBright, seekBar)
 
         val nowMs = System.currentTimeMillis()
         val wcLabels = SettingsStore.WORLD_CLOCKS.map {
@@ -509,82 +558,18 @@ class MainActivity : Activity(), DashboardView.Listener {
                 SettingsStore.WORLD_CLOCKS.indexOfFirst { it.timeZoneId == saved }
             }.let { if (it >= 0) it else 0 }
         }
-        val wc1Idx = findWcIndex(settings.worldClock1)
-        val wc2Idx = findWcIndex(settings.worldClock2)
+        val spinnerWc1 = makeSpinner(wcLabels, findWcIndex(settings.worldClock1))
+        val spinnerWc2 = makeSpinner(wcLabels, findWcIndex(settings.worldClock2))
+        addRow(makeLabel(if (isEn) "World Clock 1" else "세계시간 1"), spinnerWc1)
+        addRow(makeLabel(if (isEn) "World Clock 2" else "세계시간 2"), spinnerWc2)
 
-        val tvWc1 = TextView(this).apply {
-            text = if (isEn) "World Clock 1" else "세계시간 1"
-            textSize = 16f
-            setPadding(0, 24, 0, 4)
-        }
-        val spinnerWc1 = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, wcLabels)
-            setSelection(wc1Idx)
+        val scrollView = ScrollView(this).apply {
+            addView(container)
         }
 
-        val tvWc2 = TextView(this).apply {
-            text = if (isEn) "World Clock 2" else "세계시간 2"
-            textSize = 16f
-            setPadding(0, 18, 0, 4)
-        }
-        val spinnerWc2 = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, wcLabels)
-            setSelection(wc2Idx)
-        }
-
-        val refreshChoices = arrayOf(30, 60, 120, 180, 360)
-        val refreshLabels = if (isEn) {
-            arrayOf("30 min", "1 hour", "2 hours", "3 hours", "6 hours")
-        } else {
-            arrayOf("30분", "1시간", "2시간", "3시간", "6시간")
-        }
-        val refreshIdx = refreshChoices.indexOf(settings.refreshIntervalMinutes).let { if (it >= 0) it else 0 }
-
-        val tvRefresh = TextView(this).apply {
-            text = if (isEn) "Auto Refresh Interval (Wi-Fi)" else "업데이트 주기 (Wi-Fi 연결 시)"
-            textSize = 16f
-            setPadding(0, 24, 0, 4)
-        }
-        val spinnerRefresh = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, refreshLabels)
-            setSelection(refreshIdx)
-        }
-
-        val rotateChoices = arrayOf(0, 1, 5, 10, 30, 60)
-        val rotateLabels = if (isEn) {
-            arrayOf("Off", "Every 1 min", "Every 5 min", "Every 10 min", "Every 30 min", "Every 1 hour")
-        } else {
-            arrayOf("사용 안 함", "1분마다", "5분마다", "10분마다", "30분마다", "1시간마다")
-        }
-        val rotateIdx = rotateChoices.indexOf(settings.pageAutoRotateMinutes).let { if (it >= 0) it else 0 }
-        val tvRotate = TextView(this).apply {
-            text = if (isEn) "Auto Switch Page (Weather/Quotes/News)" else "하단 페이지 자동 전환 (날씨·명언·뉴스)"
-            textSize = 16f
-            setPadding(0, 24, 0, 4)
-        }
-        val spinnerRotate = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, rotateLabels)
-            setSelection(rotateIdx)
-        }
-
-        container.addView(tvLang)
-        container.addView(spinnerLang)
-        container.addView(tvKeep)
-        container.addView(spinner)
-        container.addView(tvRefresh)
-        container.addView(spinnerRefresh)
-        container.addView(tvRotate)
-        container.addView(spinnerRotate)
-        container.addView(tvBright)
-        container.addView(seekBar)
-        container.addView(tvWc1)
-        container.addView(spinnerWc1)
-        container.addView(tvWc2)
-        container.addView(spinnerWc2)
-
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(if (isEn) "Dashboard Settings" else "대시보드 설정")
-            .setView(container)
+            .setView(scrollView)
             .setPositiveButton(if (isEn) "Save" else "저장") { _, _ ->
                 val chosenLang = langChoices[spinnerLang.selectedItemPosition]
                 val langChanged = chosenLang != settings.language
@@ -617,7 +602,11 @@ class MainActivity : Activity(), DashboardView.Listener {
             .setNegativeButton(if (isEn) "Cancel" else "취소") { _, _ ->
                 applyBrightness(settings.brightnessPercent)
             }
-            .show()
+            .create()
+
+        dialog.show()
+        val dlgWidth = (dm.widthPixels * 0.90f).toInt()
+        dialog.window?.setLayout(dlgWidth, WindowManager.LayoutParams.WRAP_CONTENT)
     }
 
     override fun onCloseClick() {
