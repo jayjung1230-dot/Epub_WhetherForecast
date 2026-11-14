@@ -279,17 +279,53 @@ class MainActivity : Activity(), DashboardView.Listener {
         refreshWeather(force = true)
     }
 
+    private fun dp(v: Int): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
+
+    private fun makeUniformListAdapter(items: Array<String>): ArrayAdapter<String> {
+        return object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, items) {
+            override fun getView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
+                val tv = super.getView(position, convertView, parent) as TextView
+                tv.textSize = 15f
+                tv.setTextColor(android.graphics.Color.BLACK)
+                tv.setPadding(dp(18), dp(12), dp(18), dp(12))
+                return tv
+            }
+        }
+    }
+
+    private fun showUniformDialog(dialog: AlertDialog, widthRatio: Float = 0.80f): AlertDialog {
+        dialog.show()
+        val targetW = (resources.displayMetrics.widthPixels * widthRatio).toInt()
+        dialog.window?.setLayout(targetW, WindowManager.LayoutParams.WRAP_CONTENT)
+        val parentId = resources.getIdentifier("parentPanel", "id", "android")
+        if (parentId != 0) {
+            dialog.findViewById<android.view.View>(parentId)?.let { panel ->
+                panel.layoutParams = panel.layoutParams?.apply { width = targetW }
+            }
+        }
+        return dialog
+    }
+
     override fun onRegionClick() {
         resetKeepScreenOnTimer()
-        val items = arrayOf(
-            "현재 위치 자동 감지 (Wi-Fi)",
-            "시 · 구 · 동 단계별 선택",
-            "동네 검색 (직접 입력)"
-        )
+        val isEn = settings.language == "en"
+        val items = if (isEn) {
+            arrayOf(
+                "Auto Detect Current Location (Wi-Fi)",
+                "Select Region (Province / City / District)",
+                "Search Location (Global / Domestic)"
+            )
+        } else {
+            arrayOf(
+                "현재 위치 자동 감지 (Wi-Fi)",
+                "시 · 구 · 동 단계별 선택",
+                "동네 검색 (직접 입력)"
+            )
+        }
 
-        AlertDialog.Builder(this)
-            .setTitle("지역 선택")
-            .setItems(items) { _, which ->
+        val dlg = AlertDialog.Builder(this)
+            .setTitle(if (isEn) "Select Region" else "지역 선택")
+            .setAdapter(makeUniformListAdapter(items)) { _, which ->
                 when (which) {
                     0 -> {
                         settings = settings.copy(autoLocation = true)
@@ -300,8 +336,9 @@ class MainActivity : Activity(), DashboardView.Listener {
                     2 -> showRegionSearchDialog()
                 }
             }
-            .setNegativeButton("취소", null)
-            .show()
+            .setNegativeButton(if (isEn) "Cancel" else "취소", null)
+            .create()
+        showUniformDialog(dlg)
     }
 
     private fun showSidoPicker() {
@@ -310,9 +347,9 @@ class MainActivity : Activity(), DashboardView.Listener {
             Toast.makeText(this, "지역 데이터를 불러올 수 없습니다", Toast.LENGTH_SHORT).show()
             return
         }
-        AlertDialog.Builder(this)
+        val dlg = AlertDialog.Builder(this)
             .setTitle("시 / 도 선택")
-            .setItems(sidos.toTypedArray()) { _, idx ->
+            .setAdapter(makeUniformListAdapter(sidos.toTypedArray())) { _, idx ->
                 val sido = sidos[idx]
                 val sigungus = RegionStore.getSigungus(this, sido)
                 if (sigungus.size == 1) {
@@ -322,19 +359,21 @@ class MainActivity : Activity(), DashboardView.Listener {
                 }
             }
             .setNegativeButton("취소", null)
-            .show()
+            .create()
+        showUniformDialog(dlg)
     }
 
     private fun showSigunguPicker(sido: String) {
         val sigungus = RegionStore.getSigungus(this, sido)
-        AlertDialog.Builder(this)
+        val dlg = AlertDialog.Builder(this)
             .setTitle("$sido · 시 / 군 / 구 선택")
-            .setItems(sigungus.toTypedArray()) { _, idx ->
+            .setAdapter(makeUniformListAdapter(sigungus.toTypedArray())) { _, idx ->
                 showDongPicker(sido, sigungus[idx])
             }
             .setNeutralButton("이전") { _, _ -> showSidoPicker() }
             .setNegativeButton("취소", null)
-            .show()
+            .create()
+        showUniformDialog(dlg)
     }
 
     private fun showDongPicker(sido: String, sigungu: String) {
@@ -344,9 +383,9 @@ class MainActivity : Activity(), DashboardView.Listener {
             preset.name.removePrefix(prefix)
         }.toTypedArray()
         val title = if (sido == sigungu) "$sido · 읍 / 면 / 동 선택" else "$sido $sigungu · 읍 / 면 / 동 선택"
-        AlertDialog.Builder(this)
+        val dlg = AlertDialog.Builder(this)
             .setTitle(title)
-            .setItems(labels) { _, idx ->
+            .setAdapter(makeUniformListAdapter(labels)) { _, idx ->
                 val chosen = dongs[idx]
                 settings = settings.copy(
                     autoLocation = false,
@@ -366,21 +405,23 @@ class MainActivity : Activity(), DashboardView.Listener {
                 }
             }
             .setNegativeButton("취소", null)
-            .show()
+            .create()
+        showUniformDialog(dlg)
     }
 
     private fun showRegionSearchDialog() {
         val isEn = settings.language == "en"
         val input = EditText(this).apply {
             hint = if (isEn) "e.g. Tokyo, London, New York, Gangnam" else "예: 역삼동, 분당구 정자동, Tokyo, London"
+            textSize = 15f
             setSingleLine(true)
         }
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(48, 24, 48, 12)
+            setPadding(dp(20), dp(12), dp(20), dp(8))
             addView(input)
         }
-        AlertDialog.Builder(this)
+        val searchDlg = AlertDialog.Builder(this)
             .setTitle(if (isEn) "Search Location" else "지역 검색 (국내/해외)")
             .setView(box)
             .setPositiveButton(if (isEn) "Search" else "검색") { _, _ ->
@@ -409,9 +450,9 @@ class MainActivity : Activity(), DashboardView.Listener {
                                 ).show()
                             } else {
                                 val names = found.map { "${it.name} (${it.countryCode})" }.toTypedArray()
-                                AlertDialog.Builder(this)
+                                val resDlg = AlertDialog.Builder(this)
                                     .setTitle(if (isEn) "Select Location" else "검색 결과 선택")
-                                    .setItems(names) { _, idx ->
+                                    .setAdapter(makeUniformListAdapter(names)) { _, idx ->
                                         val chosen = found[idx]
                                         settings = settings.copy(
                                             autoLocation = false,
@@ -424,7 +465,8 @@ class MainActivity : Activity(), DashboardView.Listener {
                                         refreshWeather(force = true)
                                     }
                                     .setNegativeButton(if (isEn) "Cancel" else "취소", null)
-                                    .show()
+                                    .create()
+                                showUniformDialog(resDlg)
                             }
                         }
                     } catch (_: Exception) {
@@ -440,17 +482,31 @@ class MainActivity : Activity(), DashboardView.Listener {
                 }
             }
             .setNegativeButton(if (isEn) "Cancel" else "취소", null)
-            .show()
+            .create()
+        showUniformDialog(searchDlg)
     }
 
     override fun onSettingsClick() {
         resetKeepScreenOnTimer()
         val isEn = settings.language == "en"
         val dm = resources.displayMetrics
-        fun dp(v: Int): Int = (v * dm.density + 0.5f).toInt()
 
         fun makeAdapter(items: Array<String>): ArrayAdapter<String> {
-            return ArrayAdapter(this, android.R.layout.simple_spinner_item, items).apply {
+            return object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, items) {
+                override fun getView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
+                    val tv = super.getView(position, convertView, parent) as TextView
+                    tv.textSize = 15f
+                    tv.setTextColor(android.graphics.Color.BLACK)
+                    return tv
+                }
+
+                override fun getDropDownView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
+                    val tv = super.getDropDownView(position, convertView, parent) as TextView
+                    tv.textSize = 15f
+                    tv.setTextColor(android.graphics.Color.BLACK)
+                    return tv
+                }
+            }.apply {
                 setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             }
         }
@@ -475,7 +531,7 @@ class MainActivity : Activity(), DashboardView.Listener {
 
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            minimumWidth = (dm.widthPixels * 0.84f).toInt()
+            minimumWidth = (dm.widthPixels * 0.76f).toInt()
             setPadding(dp(18), dp(10), dp(18), dp(8))
         }
 
@@ -604,9 +660,7 @@ class MainActivity : Activity(), DashboardView.Listener {
             }
             .create()
 
-        dialog.show()
-        val dlgWidth = (dm.widthPixels * 0.90f).toInt()
-        dialog.window?.setLayout(dlgWidth, WindowManager.LayoutParams.WRAP_CONTENT)
+        showUniformDialog(dialog, 0.80f)
     }
 
     override fun onCloseClick() {
