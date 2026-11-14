@@ -27,6 +27,8 @@ class DashboardView(context: Context) : View(context) {
         fun onRegionClick()
         fun onSettingsClick()
         fun onRefreshClick()
+        fun onQuoteRefreshClick()
+        fun onNewsRefreshClick()
         fun onCloseClick()
         fun onPrevPageClick()
         fun onNextPageClick()
@@ -54,6 +56,8 @@ class DashboardView(context: Context) : View(context) {
     private val btnCloseRect = RectF()
     private val btnPrevPageRect = RectF()
     private val btnNextPageRect = RectF()
+    private val btnQuoteRefreshRect = RectF()
+    private val btnNewsRefreshRect = RectF()
 
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.BLACK
@@ -102,6 +106,8 @@ class DashboardView(context: Context) : View(context) {
             when {
                 btnCloseRect.contains(x, y) -> listener?.onCloseClick()
                 btnRefreshRect.contains(x, y) -> listener?.onRefreshClick()
+                btnQuoteRefreshRect.contains(x, y) -> listener?.onQuoteRefreshClick()
+                btnNewsRefreshRect.contains(x, y) -> listener?.onNewsRefreshClick()
                 btnSettingsRect.contains(x, y) -> listener?.onSettingsClick()
                 btnRegionRect.contains(x, y) -> listener?.onRegionClick()
                 btnPrevPageRect.contains(x, y) -> listener?.onPrevPageClick()
@@ -118,6 +124,8 @@ class DashboardView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.drawColor(Color.WHITE)
+        btnQuoteRefreshRect.setEmpty()
+        btnNewsRefreshRect.setEmpty()
 
         val screenW = width.toFloat()
         val screenH = height.toFloat()
@@ -624,6 +632,12 @@ class DashboardView(context: Context) : View(context) {
             textPaint
         )
 
+        val btnSize = 44f * s
+        val refRect = RectF(w - m - 32f * s - btnSize, boxTop + 22f * s, w - m - 32f * s, boxTop + 22f * s + btnSize)
+        btnQuoteRefreshRect.set(refRect)
+        drawCard(canvas, refRect, 12f * s, Color.rgb(245, 245, 245), 2f * s)
+        drawRefreshIcon(canvas, refRect.centerX(), refRect.centerY(), 12f * s, s)
+
         val catLabel = if (isEn) {
             q1?.categoryEn?.ifBlank { "Classic Quote" } ?: "Classic Quote"
         } else {
@@ -632,7 +646,7 @@ class DashboardView(context: Context) : View(context) {
         textPaint.typeface = Typeface.DEFAULT_BOLD
         textPaint.textSize = 22f * s
         val catW = textPaint.measureText(catLabel) + 36f * s
-        val tagRect = RectF(w - m - 32f * s - catW, boxTop + 22f * s, w - m - 32f * s, boxTop + 66f * s)
+        val tagRect = RectF(refRect.left - 12f * s - catW, boxTop + 22f * s, refRect.left - 12f * s, boxTop + 66f * s)
         drawCard(canvas, tagRect, 12f * s, Color.rgb(24, 24, 24), 2f * s)
         textPaint.color = Color.WHITE
         canvas.drawText(catLabel, tagRect.left + 18f * s, boxTop + 52f * s, textPaint)
@@ -742,11 +756,17 @@ class DashboardView(context: Context) : View(context) {
         textPaint.textSize = 32f * s
         canvas.drawText(if (isEn) "Top News Headlines" else "주요 뉴스 헤드라인", m + 36f * s, boxTop + 56f * s, textPaint)
 
+        val btnSize = 44f * s
+        val refRect = RectF(w - m - 32f * s - btnSize, boxTop + 22f * s, w - m - 32f * s, boxTop + 22f * s + btnSize)
+        btnNewsRefreshRect.set(refRect)
+        drawCard(canvas, refRect, 12f * s, Color.rgb(245, 245, 245), 2f * s)
+        drawRefreshIcon(canvas, refRect.centerX(), refRect.centerY(), 12f * s, s)
+
         textPaint.color = Color.rgb(85, 85, 85)
         textPaint.typeface = Typeface.DEFAULT
         textPaint.textSize = 23f * s
         val srcInfo = if (isEn) "Google News · $cc" else "Google 뉴스 · $cc"
-        canvas.drawText(srcInfo, w - m - 36f * s - textPaint.measureText(srcInfo), boxTop + 54f * s, textPaint)
+        canvas.drawText(srcInfo, refRect.left - 16f * s - textPaint.measureText(srcInfo), boxTop + 52f * s, textPaint)
 
         strokePaint.color = Color.rgb(160, 160, 160)
         strokePaint.strokeWidth = 2f * s
@@ -958,5 +978,19 @@ class DashboardView(context: Context) : View(context) {
         val baseline = outRect.centerY() - (fm.ascent + fm.descent) / 2f
         canvas.drawText(label, outRect.centerX() - tw / 2f, baseline, textPaint)
         return leftX
+    }
+
+    private fun drawRefreshIcon(canvas: Canvas, cx: Float, cy: Float, r: Float, s: Float) {
+        strokePaint.color = Color.BLACK
+        strokePaint.strokeWidth = 2.8f * s
+        val oval = RectF(cx - r, cy - r, cx + r, cy + r)
+        canvas.drawArc(oval, -50f, 285f, false, strokePaint)
+
+        // Arrowhead at -50 deg (top-right)
+        val ax = cx + r * kotlin.math.cos(Math.toRadians(-50.0)).toFloat()
+        val ay = cy + r * kotlin.math.sin(Math.toRadians(-50.0)).toFloat()
+        val tip = 6.5f * s
+        canvas.drawLine(ax, ay, ax - tip, ay - 2f * s, strokePaint)
+        canvas.drawLine(ax, ay, ax + 1.5f * s, ay - tip, strokePaint)
     }
 }

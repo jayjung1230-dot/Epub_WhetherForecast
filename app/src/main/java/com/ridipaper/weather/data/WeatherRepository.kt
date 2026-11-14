@@ -54,9 +54,13 @@ object WeatherRepository {
         }
 
         return try {
-            fetchFromMetNo(locName, isAuto, countryCode, lat, lon, lang)
+            fetchFromOpenMeteo(locName, isAuto, lat, lon, countryCode)
         } catch (_: Exception) {
-            fetchFromWttr(locName, isAuto, countryCode, lat, lon, lang)
+            try {
+                fetchFromWttr(locName, isAuto, countryCode, lat, lon, lang)
+            } catch (_: Exception) {
+                fetchFromMetNo(locName, isAuto, countryCode, lat, lon, lang)
+            }
         }
     }
 

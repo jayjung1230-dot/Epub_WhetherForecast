@@ -279,6 +279,50 @@ class MainActivity : Activity(), DashboardView.Listener {
         refreshWeather(force = true)
     }
 
+    override fun onQuoteRefreshClick() {
+        resetKeepScreenOnTimer()
+        val lang = settings.language
+        val currentText = mainQuote?.textKo
+        var pair = ContentRepository.fetchQuotes(lang)
+        if (pair.first.textKo == currentText) {
+            pair = pair.second to pair.first
+        }
+        mainQuote = pair.first
+        subQuote = pair.second
+        render()
+    }
+
+    override fun onNewsRefreshClick() {
+        resetKeepScreenOnTimer()
+        if (!isWifiConnected()) {
+            val msg = if (settings.language == "en") {
+                "Wi-Fi is disconnected. Connect to refresh news."
+            } else {
+                "Wi-Fi 연결 후 뉴스를 새로고침할 수 있습니다."
+            }
+            render(msg)
+            return
+        }
+        val snapshot = settings
+        val cc = currentWeather?.countryCode ?: snapshot.manualCountryCode.ifBlank { "KR" }
+        render(if (snapshot.language == "en") "Refreshing news..." else "뉴스 새로고침 중...")
+        thread {
+            val fetched = try {
+                ContentRepository.fetchNews(cc, snapshot.language)
+            } catch (_: Exception) {
+                null
+            }
+            handler.post {
+                if (fetched != null && fetched.isNotEmpty()) {
+                    newsList = fetched
+                    render()
+                } else {
+                    render(if (snapshot.language == "en") "Failed to refresh news." else "뉴스를 불러오지 못했습니다.")
+                }
+            }
+        }
+    }
+
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
 
     private fun makeUniformListAdapter(items: Array<String>): ArrayAdapter<String> {
