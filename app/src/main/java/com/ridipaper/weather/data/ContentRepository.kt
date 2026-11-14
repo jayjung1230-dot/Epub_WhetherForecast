@@ -4,9 +4,13 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.ridipaper.weather.model.BookItem
 import com.ridipaper.weather.model.EconomyIndicator
+import com.ridipaper.weather.model.EnglishStudyItem
+import com.ridipaper.weather.model.HistoryDayData
+import com.ridipaper.weather.model.HistoryEventItem
 import com.ridipaper.weather.model.MovieItem
 import com.ridipaper.weather.model.NewsItem
 import com.ridipaper.weather.model.QuoteItem
+import java.util.Calendar
 import java.net.HttpURLConnection
 import java.net.URL
 import org.json.JSONArray
@@ -798,5 +802,240 @@ object ContentRepository {
         } catch (_: Exception) {
             null
         }
+    }
+
+    private val CURATED_ENGLISH = listOf(
+        EnglishStudyItem(
+            word = "serendipity",
+            phonetic = "[ˌserənˈdɪpəti]",
+            partOfSpeech = "noun",
+            meaningKo = "뜻밖의 행운, 우연한 기쁨 · 발견",
+            synonymEn = "happy accident, fortunate discovery",
+            sentenceEn = "Finding this quiet café on a rainy afternoon was pure serendipity.",
+            sentenceKo = "비 오는 오후에 이 조용한 카페를 발견한 것은 순전한 뜻밖의 행운이었습니다.",
+            expressionEn = "by a stroke of serendipity",
+            expressionKo = "우연한 행운이 겹쳐서",
+            tipKo = "단순한 '운(luck)'보다, 무언가를 찾다가 우연히 더 값진 것을 얻게 되는 낭만적 뉘앙스에 자주 쓰입니다.",
+            tipEn = "Describes a pleasant surprise found unexpectedly while looking for something else."
+        ),
+        EnglishStudyItem(
+            word = "resilient",
+            phonetic = "[rɪˈzɪliənt]",
+            partOfSpeech = "adjective",
+            meaningKo = "회복력이 빠른, 탄력 있는, 쉽게 좌절하지 않는",
+            synonymEn = "adaptable, tough, buoyant",
+            sentenceEn = "Children are remarkably resilient when surrounded by steady support.",
+            sentenceKo = "아이들은 꾸준한 지지를 받을 때 놀라울 정도로 빠른 회복력을 보입니다.",
+            expressionEn = "bounce back from adversity",
+            expressionKo = "역경을 딛고 다시 일어서다",
+            tipKo = "비즈니스와 심리학에서 위기 후 원래 상태를 회복하는 힘(resilience)을 말할 때 핵심 형용사입니다.",
+            tipEn = "Commonly used for people, teams, or systems that recover quickly from hardship."
+        ),
+        EnglishStudyItem(
+            word = "meticulous",
+            phonetic = "[məˈtɪkjələs]",
+            partOfSpeech = "adjective",
+            meaningKo = "세심한, 꼼꼼한, 아주 세밀하게 주의를 기울이는",
+            synonymEn = "thorough, painstaking, precise",
+            sentenceEn = "She kept meticulous notes on every experiment throughout the year.",
+            sentenceKo = "그녀는 일 년 내내 모든 실험에 대해 꼼꼼하게 기록을 남겼습니다.",
+            expressionEn = "pay meticulous attention to detail",
+            expressionKo = "세부 사항까지 세심하게 신경 쓰다",
+            tipKo = "단순한 'careful'보다 훨씬 전문적이고 빈틈없는 장인정신 느낌을 줍니다.",
+            tipEn = "Stronger than 'careful'; emphasizes extreme precision and thoroughness."
+        ),
+        EnglishStudyItem(
+            word = "pragmatic",
+            phonetic = "[præɡˈmætɪk]",
+            partOfSpeech = "adjective",
+            meaningKo = "실용적인, 현실적인, 실질적 결과를 중시하는",
+            synonymEn = "practical, realistic, down-to-earth",
+            sentenceEn = "We need a pragmatic approach that works within our current budget.",
+            sentenceKo = "현재 예산 안에서 실제로 작동할 수 있는 현실적인 접근법이 필요합니다.",
+            expressionEn = "take a pragmatic view",
+            expressionKo = "현실적인 관점을 취하다",
+            tipKo = "이상론(idealistic)과 대비되어, 당장 실행 가능하고 효과가 있는 선택을 강조할 때 씁니다.",
+            tipEn = "Contrasts with 'idealistic'; focuses on what works in real-world practice."
+        ),
+        EnglishStudyItem(
+            word = "ephemeral",
+            phonetic = "[ɪˈfemərəl]",
+            partOfSpeech = "adjective",
+            meaningKo = "덧없는, 수명이 짧은, 한순간 스쳐 가는",
+            synonymEn = "fleeting, transient, short-lived",
+            sentenceEn = "Cherry blossoms are beloved precisely because their beauty is so ephemeral.",
+            sentenceKo = "벚꽃은 그 아름다움이 아주 찰나이기 때문에 더욱 사랑받습니다.",
+            expressionEn = "an ephemeral moment",
+            expressionKo = "덧없이 짧은 순간",
+            tipKo = "문학·에세이·사진 설명에서 찰나의 아름다움을 표현할 때 자주 등장하는 고급 어휘입니다.",
+            tipEn = "Often used in literature and essays to describe brief, fleeting beauty."
+        ),
+        EnglishStudyItem(
+            word = "momentum",
+            phonetic = "[məˈmentəm]",
+            partOfSpeech = "noun",
+            meaningKo = "추진력, 탄력, 가속도, 기세",
+            synonymEn = "impetus, drive, energy",
+            sentenceEn = "Once you build daily reading momentum, finishing a book feels effortless.",
+            sentenceKo = "매일 독서하는 탄력이 붙으면 책 한 권을 끝내는 것이 한결 수월해집니다.",
+            expressionEn = "gain / keep momentum",
+            expressionKo = "탄력을 받다 / 기세를 이어가다",
+            tipKo = "경제 뉴스(상승 모멘텀)와 자기계발(습관의 추진력) 모두에서 빈번히 쓰입니다.",
+            tipEn = "Used in both physics/finance and everyday speech for sustained forward progress."
+        ),
+        EnglishStudyItem(
+            word = "candid",
+            phonetic = "[ˈkændɪd]",
+            partOfSpeech = "adjective",
+            meaningKo = "솔직한, 가식 없는, 숨김없는",
+            synonymEn = "frank, honest, straightforward",
+            sentenceEn = "I appreciate your candid feedback on my draft before the presentation.",
+            sentenceKo = "발표 전에 초안에 대해 솔직한 피드백을 주셔서 감사합니다.",
+            expressionEn = "to be candid with you",
+            expressionKo = "솔직히 말씀드리면",
+            tipKo = "무례한 직설이 아니라, 상대를 존중하면서도 솔직하게 핵심을 짚어줄 때 긍정적으로 쓰입니다.",
+            tipEn = "Implies refreshing honesty without malice, especially in constructive feedback."
+        ),
+        EnglishStudyItem(
+            word = "perspective",
+            phonetic = "[pərˈspektɪv]",
+            partOfSpeech = "noun",
+            meaningKo = "관점, 시각, 원근법, 균형 잡힌 판단력",
+            synonymEn = "viewpoint, outlook, standpoint",
+            sentenceEn = "Stepping away for a walk often gives you a fresh perspective on a problem.",
+            sentenceKo = "잠시 자리를 벗어나 산책을 하면 문제에 대한 새로운 시각을 얻곤 합니다.",
+            expressionEn = "put things into perspective",
+            expressionKo = "사물을 객관적·균형 있게 바라보다",
+            tipKo = "시야가 좁아졌을 때 한 걸음 물러나 전체 그림을 본다는 의미로 자주 쓰이는 표현입니다.",
+            tipEn = "Great for expressing how distance or reflection clarifies what truly matters."
+        )
+    )
+
+    fun fetchEnglishStudy(): EnglishStudyItem = CURATED_ENGLISH[Random.nextInt(CURATED_ENGLISH.size)]
+
+    private val CURATED_HISTORY_BY_DAY: Map<String, List<HistoryEventItem>> = mapOf(
+        "11-14" to listOf(
+            HistoryEventItem(
+                year = "1851",
+                titleKo = "허먼 멜빌의 소설 《모비 딕》 미국 초판 출간",
+                titleEn = "Herman Melville's 'Moby-Dick' Published in the US",
+                detailKo = "영국 초판에 이어 미국 뉴욕에서 정식 출간되며 19세기 미국 문학을 대표하는 고전으로 자리매김했습니다.",
+                detailEn = "Following its London release, Moby-Dick debuted in New York and became a cornerstone of American literature."
+            ),
+            HistoryEventItem(
+                year = "1922",
+                titleKo = "영국 BBC 라디오 정규 방송 최초 개시",
+                titleEn = "BBC Begins Daily Radio Broadcasting in the UK",
+                detailKo = "런던 2LO 송신국을 통해 영국 최초의 정규 라디오 뉴스와 일기예보 방송이 전파를 탔습니다.",
+                detailEn = "The British Broadcasting Company aired its first daily news and weather bulletins from station 2LO in London."
+            ),
+            HistoryEventItem(
+                year = "1969",
+                titleKo = "NASA 아폴로 12호, 두 번째 달 착륙 임무 발사",
+                titleEn = "NASA Launches Apollo 12 Toward the Moon",
+                detailKo = "폭우 속에서 발사된 아폴로 12호는 정밀 착륙에 성공하며 인류의 달 탐사 기술을 한 단계 끌어올렸습니다.",
+                detailEn = "Apollo 12 lifted off through rainstorms and achieved a pinpoint lunar landing in the Ocean of Storms."
+            )
+        ),
+        "11-15" to listOf(
+            HistoryEventItem(
+                year = "1971",
+                titleKo = "인텔, 세계 최초 상용 마이크로프로세서 '4004' 공개",
+                titleEn = "Intel Unveils the 4004 Microprocessor",
+                detailKo = "4비트 CPU인 인텔 4004가 발표되며 현대 개인용 컴퓨터와 임베디드 시대의 서막을 열었습니다.",
+                detailEn = "Intel advertised the 4-bit 4004 chip, marking the birth of the commercial microprocessor era."
+            ),
+            HistoryEventItem(
+                year = "1960",
+                titleKo = "해군 잠수함 조지 워싱턴호, 폴라리스 미사일 첫 실전 배치",
+                titleEn = "USS George Washington Begins First Polaris Patrol",
+                detailKo = "잠수함 발사 탄도미사일을 탑재한 최초의 전략핵잠수함이 대서양 초계 항해에 나섰습니다.",
+                detailEn = "The first operational ballistic-missile submarine departed on its historic deterrent patrol."
+            ),
+            HistoryEventItem(
+                year = "1988",
+                titleKo = "소련 최초의 우주왕복선 '부란(Buran)' 무인 비행 성공",
+                titleEn = "Soviet Shuttle Buran Completes Unmanned Orbit",
+                detailKo = "완전 자동 조종으로 지구 궤도를 2바퀴 돈 뒤 활주로에 정확히 착륙하며 항공우주 기술력을 입증했습니다.",
+                detailEn = "Buran completed two orbits and an automated runway landing without a crew on board."
+            )
+        )
+    )
+
+    private val FALLBACK_HISTORY_EVENTS = listOf(
+        HistoryEventItem(
+            year = "1443",
+            titleKo = "세종대왕, 훈민정음 창제",
+            titleEn = "King Sejong Creates Hunminjeongeum (Hangul)",
+            detailKo = "백성이 쉽게 배우고 쓸 수 있는 독창적 문자 체계인 훈민정음이 창제되어 한국 문화와 기록의 기틀을 세웠습니다.",
+            detailEn = "King Sejong the Great completed the Korean alphabet, empowering universal literacy."
+        ),
+        HistoryEventItem(
+            year = "1969",
+            titleKo = "아폴로 11호, 인류 최초 달 착륙 성공",
+            titleEn = "Apollo 11 Achieves First Crewed Moon Landing",
+            detailKo = "닐 암스트롱과 버즈 올드린이 달 표면에 발을 디디며 인류 우주 탐사의 새로운 장을 열었습니다.",
+            detailEn = "Neil Armstrong and Buzz Aldrin walked on the Moon, fulfilling humanity's lunar dream."
+        ),
+        HistoryEventItem(
+            year = "1989",
+            titleKo = "팀 버너스리, 월드 와이드 웹(WWW) 구상 제안",
+            titleEn = "Tim Berners-Lee Proposes the World Wide Web",
+            detailKo = "CERN에서 하이퍼텍스트 기반 정보 공유 시스템을 제안하며 오늘날 인터넷 웹 시대의 출발점이 되었습니다.",
+            detailEn = "At CERN, Tim Berners-Lee outlined the hypertext system that became the modern Web."
+        )
+    )
+
+    fun fetchHistoryToday(): HistoryDayData {
+        val cal = Calendar.getInstance()
+        val month = cal.get(Calendar.MONTH) + 1
+        val day = cal.get(Calendar.DAY_OF_MONTH)
+        val key = String.format(Locale.US, "%02d-%02d", month, day)
+        val monthNameEn = SimpleDateFormat("MMM", Locale.US).format(cal.time)
+        val dateKo = "${month}월 ${day}일"
+        val dateEn = "$monthNameEn $day"
+
+        val curated = CURATED_HISTORY_BY_DAY[key]
+        if (!curated.isNullOrEmpty()) {
+            return HistoryDayData(dateKo, dateEn, curated)
+        }
+
+        // Try live Wikipedia/Muffinlabs On This Day API over HTTPS; fallback to curated milestones if unavailable.
+        val liveEvents = try {
+            val url = "https://history.muffinlabs.com/date/$month/$day"
+            val root = JSONObject(WeatherRepository.httpGet(url))
+            val eventsArr = root.getJSONObject("data").getJSONArray("Events")
+            val picked = ArrayList<HistoryEventItem>()
+            val total = eventsArr.length()
+            if (total > 0) {
+                val step = (total / 3).coerceAtLeast(1)
+                for (idx in 0 until 3) {
+                    val i = (idx * step).coerceAtMost(total - 1)
+                    val ev = eventsArr.getJSONObject(i)
+                    val year = ev.optString("year", "").trim()
+                    val text = ev.optString("text", "").trim()
+                    if (year.isNotEmpty() && text.isNotEmpty()) {
+                        picked.add(
+                            HistoryEventItem(
+                                year = year,
+                                titleKo = text,
+                                titleEn = text,
+                                detailKo = "${year}년 오늘($dateKo)에 일어난 주요 역사적 사건입니다.",
+                                detailEn = "Recorded historical event on $dateEn, $year."
+                            )
+                        )
+                    }
+                }
+            }
+            picked
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        return HistoryDayData(
+            dateLabelKo = dateKo,
+            dateLabelEn = dateEn,
+            events = if (liveEvents.isNotEmpty()) liveEvents else FALLBACK_HISTORY_EVENTS
+        )
     }
 }

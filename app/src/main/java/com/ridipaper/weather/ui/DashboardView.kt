@@ -1,6 +1,8 @@
 package com.ridipaper.weather.ui
 
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -11,6 +13,7 @@ import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.os.BatteryManager
 import android.view.MotionEvent
 import android.view.View
 import com.ridipaper.weather.data.SettingsStore
@@ -18,6 +21,8 @@ import com.ridipaper.weather.data.WeatherRepository
 import com.ridipaper.weather.model.BookItem
 import com.ridipaper.weather.model.DashboardSettings
 import com.ridipaper.weather.model.EconomyIndicator
+import com.ridipaper.weather.model.EnglishStudyItem
+import com.ridipaper.weather.model.HistoryDayData
 import com.ridipaper.weather.model.MovieItem
 import com.ridipaper.weather.model.NewsItem
 import com.ridipaper.weather.model.PageType
@@ -25,6 +30,7 @@ import com.ridipaper.weather.model.QuoteItem
 import com.ridipaper.weather.model.WeatherData
 import com.ridipaper.weather.util.LunarCalendar
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -50,11 +56,13 @@ class DashboardView(context: Context) : View(context) {
     private var bookItem: BookItem? = null
     private var movieItem: MovieItem? = null
     private var economyList: List<EconomyIndicator> = emptyList()
+    private var englishItem: EnglishStudyItem? = null
+    private var historyData: HistoryDayData? = null
     private var bookBitmap: Bitmap? = null
     private var movieBitmap: Bitmap? = null
     private var activePageType: PageType = PageType.WEATHER
     private var pageNumber: Int = 1
-    private var totalPages: Int = 6
+    private var totalPages: Int = 8
     private var settings: DashboardSettings = DashboardSettings()
     private var wifiConnected: Boolean = false
     private var statusMessage: String? = null
@@ -89,6 +97,7 @@ class DashboardView(context: Context) : View(context) {
     }
 
     private val timeFmt = SimpleDateFormat("HH:mm", Locale.US)
+    private val clock12Fmt = SimpleDateFormat("h:mm", Locale.US)
     private val dateFmtKo = SimpleDateFormat("yyyy년 M월 d일 (E)", Locale.KOREA)
     private val dateFmtEn = SimpleDateFormat("EEE, MMM d, yyyy", Locale.US)
 
@@ -100,6 +109,8 @@ class DashboardView(context: Context) : View(context) {
         book: BookItem?,
         movie: MovieItem?,
         economy: List<EconomyIndicator>,
+        english: EnglishStudyItem?,
+        history: HistoryDayData?,
         bookBitmap: Bitmap?,
         movieBitmap: Bitmap?,
         activePageType: PageType,
@@ -117,6 +128,8 @@ class DashboardView(context: Context) : View(context) {
         this.bookItem = book
         this.movieItem = movie
         this.economyList = economy
+        this.englishItem = english
+        this.historyData = history
         this.bookBitmap = bookBitmap
         this.movieBitmap = movieBitmap
         this.activePageType = activePageType
@@ -210,6 +223,8 @@ class DashboardView(context: Context) : View(context) {
         textPaint.typeface = Typeface.DEFAULT
         textPaint.textSize = 24f * s
         canvas.drawText(subLine, m, 122f * s, textPaint)
+        val subW = textPaint.measureText(subLine)
+        drawBatteryBadge(canvas, m + subW + 20f * s, 122f * s, s)
 
         // Top right buttons: [지역] [설정] [새로고침] [닫기]
         val btnH = 64f * s
@@ -227,10 +242,18 @@ class DashboardView(context: Context) : View(context) {
 
         // --- 2. Clock & Date Banner + Lunar Date + World Clocks (max 2) ---
         val now = Date()
+        val cal = Calendar.getInstance().apply { time = now }
+        val isAm = cal.get(Calendar.AM_PM) == Calendar.AM
+        val amPmLabel = if (isEn) (if (isAm) "AM" else "PM") else (if (isAm) "오전" else "오후")
+        textPaint.color = Color.rgb(45, 45, 45)
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 32f * s
+        canvas.drawText(amPmLabel, m, 224f * s, textPaint)
+
         textPaint.color = Color.BLACK
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        textPaint.textSize = 132f * s
-        canvas.drawText(timeFmt.format(now), m, 286f * s, textPaint)
+        textPaint.textSize = 118f * s
+        canvas.drawText(clock12Fmt.format(now), m + 76f * s, 286f * s, textPaint)
 
         textPaint.textSize = 36f * s
         canvas.drawText((if (isEn) dateFmtEn else dateFmtKo).format(now), m + 392f * s, 206f * s, textPaint)
@@ -386,6 +409,8 @@ class DashboardView(context: Context) : View(context) {
             PageType.BOOK -> drawBookPage(canvas, w, m, s)
             PageType.MOVIE -> drawMoviePage(canvas, w, m, s)
             PageType.ECONOMY -> drawEconomyPage(canvas, w, m, s)
+            PageType.ENGLISH -> drawEnglishPage(canvas, w, m, s)
+            PageType.HISTORY -> drawHistoryPage(canvas, w, m, s)
             PageType.WEATHER -> drawWeatherLowerSection(canvas, data, w, m, s)
         }
 
@@ -921,6 +946,66 @@ class DashboardView(context: Context) : View(context) {
         }
     }
 
+    private fun readBatteryInfo(): Pair<Int, Boolean> {
+        return try {
+            val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
+            val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+            val pct = if (level >= 0 && scale > 0) ((level * 100f) / scale).toInt().coerceIn(0, 100) else 100
+            val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                status == BatteryManager.BATTERY_STATUS_FULL
+            pct to charging
+        } catch (_: Exception) {
+            100 to false
+        }
+    }
+
+    private fun drawBatteryBadge(canvas: Canvas, x: Float, baselineY: Float, s: Float) {
+        val (pct, charging) = readBatteryInfo()
+        textPaint.color = Color.rgb(85, 85, 85)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 24f * s
+        canvas.drawText("·", x, baselineY, textPaint)
+
+        val iconX = x + 18f * s
+        val iconW = 34f * s
+        val iconH = 18f * s
+        val iconTop = baselineY - 16f * s
+        val body = RectF(iconX, iconTop, iconX + iconW, iconTop + iconH)
+        strokePaint.color = Color.rgb(40, 40, 40)
+        strokePaint.strokeWidth = 2.2f * s
+        fillPaint.color = Color.WHITE
+        canvas.drawRoundRect(body, 3f * s, 3f * s, fillPaint)
+        canvas.drawRoundRect(body, 3f * s, 3f * s, strokePaint)
+
+        // Battery nub
+        val nub = RectF(iconX + iconW, iconTop + 5f * s, iconX + iconW + 4f * s, iconTop + iconH - 5f * s)
+        fillPaint.color = Color.rgb(40, 40, 40)
+        canvas.drawRect(nub, fillPaint)
+
+        // Battery level fill
+        val pad = 3f * s
+        val fillMaxW = (iconW - pad * 2f).coerceAtLeast(1f)
+        val fillW = fillMaxW * (pct / 100f)
+        if (fillW > 0.5f) {
+            fillPaint.color = Color.rgb(30, 30, 30)
+            canvas.drawRect(
+                iconX + pad,
+                iconTop + pad,
+                iconX + pad + fillW,
+                iconTop + iconH - pad,
+                fillPaint
+            )
+        }
+
+        val pctLabel = if (charging) "${pct}%+" else "${pct}%"
+        textPaint.color = Color.rgb(65, 65, 65)
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 23f * s
+        canvas.drawText(pctLabel, iconX + iconW + 10f * s, baselineY, textPaint)
+    }
+
     private fun drawFooter(canvas: Canvas, w: Float, m: Float, s: Float) {
         val isEn = settings.language == "en"
         val footer = if (isEn) {
@@ -930,7 +1015,12 @@ class DashboardView(context: Context) : View(context) {
             } else {
                 "${settings.refreshIntervalMinutes / 60}h"
             }
-            "Auto: $refreshLabel  ·  Keep On: ${settings.keepScreenHours}h ($remText)  ·  Bright: ${settings.brightnessPercent}%"
+            val keepLabel = if (settings.keepScreenMinutes < 60) {
+                "${settings.keepScreenMinutes}m"
+            } else {
+                "${settings.keepScreenMinutes / 60}h"
+            }
+            "Auto: $refreshLabel  ·  Keep On: $keepLabel ($remText)  ·  Bright: ${settings.brightnessPercent}%"
         } else {
             val remText = if (keepAliveRemainingMinutes > 0) "남은 ${keepAliveRemainingMinutes}분" else "해제됨"
             val refreshLabel = if (settings.refreshIntervalMinutes < 60) {
@@ -938,7 +1028,12 @@ class DashboardView(context: Context) : View(context) {
             } else {
                 "${settings.refreshIntervalMinutes / 60}시간마다"
             }
-            "자동 갱신: $refreshLabel  ·  화면 유지: ${settings.keepScreenHours}시간 ($remText)  ·  밝기: ${settings.brightnessPercent}%"
+            val keepLabel = if (settings.keepScreenMinutes < 60) {
+                "${settings.keepScreenMinutes}분"
+            } else {
+                "${settings.keepScreenMinutes / 60}시간"
+            }
+            "자동 갱신: $refreshLabel  ·  화면 유지: $keepLabel ($remText)  ·  밝기: ${settings.brightnessPercent}%"
         }
         textPaint.color = Color.rgb(80, 80, 80)
         textPaint.typeface = Typeface.DEFAULT
@@ -951,6 +1046,8 @@ class DashboardView(context: Context) : View(context) {
             PageType.BOOK -> if (isEn) "Book Pick" else "책 추천"
             PageType.MOVIE -> if (isEn) "Movie Pick" else "영화 소개"
             PageType.ECONOMY -> if (isEn) "Economy" else "주요 경제지표"
+            PageType.ENGLISH -> if (isEn) "English" else "영단어 · 문장"
+            PageType.HISTORY -> if (isEn) "History" else "오늘의 역사"
             PageType.WEATHER -> if (isEn) "Weather" else "날씨 예보"
         }
         val ind = "◀  $pageNumber / $totalPages · $pageName  ▶"
@@ -1431,6 +1528,245 @@ class DashboardView(context: Context) : View(context) {
                     }
                 }
             }
+        }
+    }
+
+    private fun drawWrappedText(
+        canvas: Canvas,
+        text: String,
+        x: Float,
+        startY: Float,
+        maxWidth: Float,
+        lineHeight: Float,
+        paint: Paint,
+        maxLines: Int
+    ): Float {
+        val lines = wrapText(text, paint, maxWidth).take(maxLines)
+        var y = startY
+        for (line in lines) {
+            canvas.drawText(line, x, y, paint)
+            y += lineHeight
+        }
+        return y
+    }
+
+    private fun drawEnglishPage(canvas: Canvas, w: Float, m: Float, s: Float) {
+        val isEn = settings.language == "en"
+        val top = 906f * s
+        val bot = 1780f * s
+        drawCard(canvas, RectF(m, top, w - m, bot), 24f * s, Color.WHITE, 4f * s)
+
+        textPaint.color = Color.BLACK
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 36f * s
+        canvas.drawText(
+            if (isEn) "Daily English Word & Sentence" else "오늘의 영단어 · 문장",
+            m + 34f * s,
+            top + 58f * s,
+            textPaint
+        )
+
+        val badgeRect = RectF(w - m - 270f * s, top + 24f * s, w - m - 34f * s, top + 68f * s)
+        drawCard(canvas, badgeRect, 12f * s, Color.BLACK, 2f * s)
+        textPaint.color = Color.WHITE
+        textPaint.textSize = 22f * s
+        val badgeText = "VOCAB & SENTENCE"
+        val bw = textPaint.measureText(badgeText)
+        canvas.drawText(badgeText, badgeRect.centerX() - bw / 2f, top + 54f * s, textPaint)
+
+        val item = englishItem
+        if (item == null) {
+            textPaint.color = Color.rgb(90, 90, 90)
+            textPaint.typeface = Typeface.DEFAULT
+            textPaint.textSize = 30f * s
+            canvas.drawText(
+                if (isEn) "Preparing today's English study..." else "오늘의 영단어를 불러오는 중입니다...",
+                m + 38f * s,
+                top + 160f * s,
+                textPaint
+            )
+            return
+        }
+
+        val padX = m + 38f * s
+        val maxW = (w - m - 38f * s) - padX
+
+        // 1. Word & Meaning Card
+        val wordCard = RectF(padX, top + 92f * s, w - m - 38f * s, top + 318f * s)
+        drawCard(canvas, wordCard, 18f * s, Color.rgb(245, 245, 245), 2.5f * s)
+
+        textPaint.color = Color.BLACK
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 62f * s
+        canvas.drawText(item.word, padX + 28f * s, wordCard.top + 78f * s, textPaint)
+        val wordW = textPaint.measureText(item.word)
+
+        textPaint.color = Color.rgb(70, 70, 70)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 28f * s
+        canvas.drawText("${item.phonetic}  ·  ${item.partOfSpeech}", padX + 28f * s + wordW + 22f * s, wordCard.top + 74f * s, textPaint)
+
+        textPaint.color = Color.BLACK
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 34f * s
+        canvas.drawText(item.meaningKo, padX + 28f * s, wordCard.top + 138f * s, textPaint)
+
+        textPaint.color = Color.rgb(80, 80, 80)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 24f * s
+        canvas.drawText(
+            (if (isEn) "Synonyms: " else "유의어: ") + item.synonymEn,
+            padX + 28f * s,
+            wordCard.top + 186f * s,
+            textPaint
+        )
+
+        // 2. Example Sentence Card
+        val sentCard = RectF(padX, top + 340f * s, w - m - 38f * s, top + 608f * s)
+        drawCard(canvas, sentCard, 18f * s, Color.WHITE, 2.5f * s)
+
+        textPaint.color = Color.rgb(55, 55, 55)
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 24f * s
+        canvas.drawText(if (isEn) "■ Example Sentence" else "■ 오늘의 문장 (Example)", padX + 26f * s, sentCard.top + 44f * s, textPaint)
+
+        textPaint.color = Color.BLACK
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 32f * s
+        val sentEndY = drawWrappedText(
+            canvas,
+            "\"${item.sentenceEn}\"",
+            padX + 26f * s,
+            sentCard.top + 96f * s,
+            maxW - 52f * s,
+            42f * s,
+            textPaint,
+            3
+        )
+
+        textPaint.color = Color.rgb(65, 65, 65)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 26f * s
+        drawWrappedText(
+            canvas,
+            item.sentenceKo,
+            padX + 26f * s,
+            sentEndY + 14f * s,
+            maxW - 52f * s,
+            34f * s,
+            textPaint,
+            2
+        )
+
+        // 3. Expression & Usage Tip Card
+        val tipCard = RectF(padX, top + 630f * s, w - m - 38f * s, bot - 30f * s)
+        drawCard(canvas, tipCard, 18f * s, Color.rgb(245, 245, 245), 2f * s)
+
+        textPaint.color = Color.BLACK
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 26f * s
+        canvas.drawText(
+            (if (isEn) "Useful Expression: " else "함께 외우는 표현: ") + "${item.expressionEn}  (${item.expressionKo})",
+            padX + 26f * s,
+            tipCard.top + 50f * s,
+            textPaint
+        )
+
+        textPaint.color = Color.rgb(60, 60, 60)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 24f * s
+        drawWrappedText(
+            canvas,
+            if (isEn) "Tip: ${item.tipEn}" else "뉘앙스 팁: ${item.tipKo}",
+            padX + 26f * s,
+            tipCard.top + 96f * s,
+            maxW - 52f * s,
+            33f * s,
+            textPaint,
+            3
+        )
+    }
+
+    private fun drawHistoryPage(canvas: Canvas, w: Float, m: Float, s: Float) {
+        val isEn = settings.language == "en"
+        val top = 906f * s
+        val bot = 1780f * s
+        drawCard(canvas, RectF(m, top, w - m, bot), 24f * s, Color.WHITE, 4f * s)
+
+        val hData = historyData
+        textPaint.color = Color.BLACK
+        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.textSize = 36f * s
+        canvas.drawText(
+            if (isEn) "On This Day in History" else "오늘의 역사 · 사건",
+            m + 34f * s,
+            top + 58f * s,
+            textPaint
+        )
+
+        val dateBadge = if (hData != null) {
+            if (isEn) hData.dateLabelEn else hData.dateLabelKo
+        } else {
+            if (isEn) "Today" else "오늘"
+        }
+        val badgeRect = RectF(w - m - 210f * s, top + 24f * s, w - m - 34f * s, top + 68f * s)
+        drawCard(canvas, badgeRect, 12f * s, Color.BLACK, 2f * s)
+        textPaint.color = Color.WHITE
+        textPaint.textSize = 24f * s
+        val bw = textPaint.measureText(dateBadge)
+        canvas.drawText(dateBadge, badgeRect.centerX() - bw / 2f, top + 55f * s, textPaint)
+
+        val events = hData?.events.orEmpty().take(3)
+        if (events.isEmpty()) {
+            textPaint.color = Color.rgb(90, 90, 90)
+            textPaint.typeface = Typeface.DEFAULT
+            textPaint.textSize = 30f * s
+            canvas.drawText(
+                if (isEn) "Loading historical events..." else "오늘의 역사 정보를 불러오는 중입니다...",
+                m + 38f * s,
+                top + 160f * s,
+                textPaint
+            )
+            return
+        }
+
+        val padX = m + 36f * s
+        val cardW = w - m - 36f * s - padX
+        val listTop = top + 92f * s
+        val listBot = bot - 30f * s
+        val gap = 18f * s
+        val cardH = (listBot - listTop - gap * 2f) / 3f
+
+        for (i in events.indices) {
+            val ev = events[i]
+            val cTop = listTop + i * (cardH + gap)
+            val cRect = RectF(padX, cTop, padX + cardW, cTop + cardH)
+            drawCard(canvas, cRect, 16f * s, if (i % 2 == 0) Color.rgb(248, 248, 248) else Color.WHITE, 2.5f * s)
+
+            // Year pill
+            val yrRect = RectF(padX + 24f * s, cTop + 26f * s, padX + 168f * s, cTop + 82f * s)
+            drawCard(canvas, yrRect, 12f * s, Color.BLACK, 2f * s)
+            textPaint.color = Color.WHITE
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            textPaint.textSize = 30f * s
+            val yrText = if (isEn) ev.year else "${ev.year}년"
+            val yw = textPaint.measureText(yrText)
+            canvas.drawText(yrText, yrRect.centerX() - yw / 2f, yrRect.top + 39f * s, textPaint)
+
+            val tx = padX + 194f * s
+            val tMaxW = padX + cardW - 24f * s - tx
+            val title = if (isEn) ev.titleEn else ev.titleKo
+            val detail = if (isEn) ev.detailEn else ev.detailKo
+
+            textPaint.color = Color.BLACK
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            textPaint.textSize = 29f * s
+            val titleEndY = drawWrappedText(canvas, title, tx, cTop + 56f * s, tMaxW, 36f * s, textPaint, 2)
+
+            textPaint.color = Color.rgb(65, 65, 65)
+            textPaint.typeface = Typeface.DEFAULT
+            textPaint.textSize = 24f * s
+            drawWrappedText(canvas, detail, tx, titleEndY + 8f * s, tMaxW, 32f * s, textPaint, 3)
         }
     }
 }

@@ -16,11 +16,14 @@ class SettingsStore(context: Context) {
         val rawRefresh = prefs.getInt("refresh_interval_minutes", 30)
         val validRefresh = if (rawRefresh in listOf(30, 60, 120, 180, 360)) rawRefresh else 30
         val rawRotate = prefs.getInt("page_auto_rotate_minutes", 0)
-        val validRotate = if (rawRotate in listOf(0, 1, 5, 10, 30, 60)) rawRotate else 0
+        val validRotate = if (rawRotate in listOf(0, 1, 3, 5, 10)) rawRotate else 0
         val rawLang = prefs.getString("language", "ko") ?: "ko"
         val validLang = if (rawLang == "en") "en" else "ko"
+        val fallbackKeepMin = prefs.getInt("keep_screen_hours", 1).coerceIn(1, 12) * 60
+        val rawKeepMin = prefs.getInt("keep_screen_minutes", fallbackKeepMin)
+        val validKeepMin = if (rawKeepMin in listOf(5, 30, 60, 120, 180, 240, 360, 480, 720)) rawKeepMin else 60
         return DashboardSettings(
-            keepScreenHours = prefs.getInt("keep_screen_hours", 1).coerceIn(1, 12),
+            keepScreenMinutes = validKeepMin,
             refreshIntervalMinutes = validRefresh,
             pageAutoRotateMinutes = validRotate,
             brightnessPercent = prefs.getInt("brightness_percent", 40).coerceIn(0, 100),
@@ -41,13 +44,16 @@ class SettingsStore(context: Context) {
             showBookPage = prefs.getBoolean("show_book_page", true),
             showMoviePage = prefs.getBoolean("show_movie_page", true),
             showEconomyPage = prefs.getBoolean("show_economy_page", true),
+            showEnglishPage = prefs.getBoolean("show_english_page", true),
+            showHistoryPage = prefs.getBoolean("show_history_page", true),
             useDashboardAsSleepScreen = prefs.getBoolean("use_dashboard_as_sleep_screen", false)
         )
     }
 
     fun save(settings: DashboardSettings) {
         prefs.edit()
-            .putInt("keep_screen_hours", settings.keepScreenHours.coerceIn(1, 12))
+            .putInt("keep_screen_minutes", settings.keepScreenMinutes)
+            .putInt("keep_screen_hours", (settings.keepScreenMinutes / 60).coerceAtLeast(1))
             .putInt("refresh_interval_minutes", settings.refreshIntervalMinutes)
             .putInt("page_auto_rotate_minutes", settings.pageAutoRotateMinutes)
             .putInt("brightness_percent", settings.brightnessPercent.coerceIn(0, 100))
@@ -64,6 +70,8 @@ class SettingsStore(context: Context) {
             .putBoolean("show_book_page", settings.showBookPage)
             .putBoolean("show_movie_page", settings.showMoviePage)
             .putBoolean("show_economy_page", settings.showEconomyPage)
+            .putBoolean("show_english_page", settings.showEnglishPage)
+            .putBoolean("show_history_page", settings.showHistoryPage)
             .putBoolean("use_dashboard_as_sleep_screen", settings.useDashboardAsSleepScreen)
             .apply()
     }

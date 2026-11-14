@@ -47,3 +47,13 @@
 - `MainActivity.kt` & `util/SleepScreenManager.kt`:
   - 설정 다이얼로그 E-Ink 라운드 사각형 ON/OFF 토글 스위치 적용 및 하단 페이지 선택 표시(날씨 고정, 나머지 5개 페이지 개별 ON/OFF)
   - 화면 유지 시간 만료 시 대시보드 캡처를 `/cache/sleep/suspend.jpg`(`1404 × 1872`)로 적용하고, OFF 전환 시 원본 시스템 대기화면 및 `persist.sys.standbytype` / `sleepscreen_file_path` 설정을 복원하는 기능 구현 (타겟 기기: 리디북스 페이퍼 프로 최적화)
+
+## 8. 시계·배터리·타이머 개선 및 영단어/역사 페이지 추가 (2026-11-14)
+- `ui/DashboardView.kt`:
+  - 메인 시계를 오전/오후(`AM`/`PM`) 12시간제로 변경하고, 상단 상태 줄 오른쪽에 E-Ink 배터리 아이콘 및 잔량(`%`) 표시 추가
+  - `오늘의 영단어 · 문장`(`drawEnglishPage`) 및 `오늘의 역사 · 사건`(`drawHistoryPage`) 페이지 구현
+- `model/WeatherModels.kt`, `data/SettingsStore.kt`, `MainActivity.kt`, `data/ContentRepository.kt`:
+  - 화면 유지 시간에 `5분`, `30분` 옵션 추가 (`keepScreenMinutes`)
+  - 하단 페이지 자동 전환 선택지를 `사용 안 함`, `1분`, `3분`, `5분`, `10분`으로 정리
+  - `오늘의 영단어 · 문장` 및 `오늘의 역사 · 사건` 데이터 로더와 설정 ON/OFF 토글 스위치 추가
+- `docs/INSTALL_GUIDE.md` & `README.md`: 리디북스 페이퍼 프로 기준 ADB/USB 단계별 설치 가이드 작성 및 전체 문서 현행화

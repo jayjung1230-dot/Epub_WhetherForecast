@@ -78,7 +78,7 @@ data class NewsItem(
 )
 
 enum class PageType {
-    WEATHER, QUOTES, NEWS, BOOK, MOVIE, ECONOMY
+    WEATHER, QUOTES, NEWS, BOOK, MOVIE, ECONOMY, ENGLISH, HISTORY
 }
 
 data class BookItem(
@@ -132,6 +132,34 @@ data class EconomyIndicator(
     val history: List<Float>
 )
 
+data class EnglishStudyItem(
+    val word: String,
+    val phonetic: String,
+    val partOfSpeech: String,
+    val meaningKo: String,
+    val synonymEn: String,
+    val sentenceEn: String,
+    val sentenceKo: String,
+    val expressionEn: String,
+    val expressionKo: String,
+    val tipKo: String,
+    val tipEn: String
+)
+
+data class HistoryEventItem(
+    val year: String,
+    val titleKo: String,
+    val titleEn: String,
+    val detailKo: String,
+    val detailEn: String
+)
+
+data class HistoryDayData(
+    val dateLabelKo: String,
+    val dateLabelEn: String,
+    val events: List<HistoryEventItem>
+)
+
 data class DashboardBundle(
     val weather: WeatherData,
     val mainQuote: QuoteItem,
@@ -141,7 +169,7 @@ data class DashboardBundle(
 )
 
 data class DashboardSettings(
-    val keepScreenHours: Int = 1,
+    val keepScreenMinutes: Int = 60,
     val refreshIntervalMinutes: Int = 30,
     val pageAutoRotateMinutes: Int = 0,
     val brightnessPercent: Int = 40,
@@ -158,5 +186,7 @@ data class DashboardSettings(
     val showBookPage: Boolean = true,
     val showMoviePage: Boolean = true,
     val showEconomyPage: Boolean = true,
+    val showEnglishPage: Boolean = true,
+    val showHistoryPage: Boolean = true,
     val useDashboardAsSleepScreen: Boolean = false
 )

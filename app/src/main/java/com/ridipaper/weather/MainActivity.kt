@@ -32,6 +32,8 @@ import com.ridipaper.weather.data.WeatherRepository
 import com.ridipaper.weather.model.BookItem
 import com.ridipaper.weather.model.DashboardSettings
 import com.ridipaper.weather.model.EconomyIndicator
+import com.ridipaper.weather.model.EnglishStudyItem
+import com.ridipaper.weather.model.HistoryDayData
 import com.ridipaper.weather.model.MovieItem
 import com.ridipaper.weather.model.NewsItem
 import com.ridipaper.weather.model.PageType
@@ -59,19 +61,23 @@ class MainActivity : Activity(), DashboardView.Listener {
     private var bookItem: BookItem? = null
     private var movieItem: MovieItem? = null
     private var economyList: List<EconomyIndicator> = emptyList()
+    private var englishItem: EnglishStudyItem? = null
+    private var historyData: HistoryDayData? = null
     private var bookBitmap: Bitmap? = null
     private var movieBitmap: Bitmap? = null
     private var currentPage: Int = 0
     private var wakeLock: PowerManager.WakeLock? = null
 
     private fun enabledPages(): List<PageType> {
-        val list = ArrayList<PageType>(6)
+        val list = ArrayList<PageType>(8)
         list.add(PageType.WEATHER) // Always fixed ON
         if (settings.showQuotesPage) list.add(PageType.QUOTES)
         if (settings.showNewsPage) list.add(PageType.NEWS)
         if (settings.showBookPage) list.add(PageType.BOOK)
         if (settings.showMoviePage) list.add(PageType.MOVIE)
         if (settings.showEconomyPage) list.add(PageType.ECONOMY)
+        if (settings.showEnglishPage) list.add(PageType.ENGLISH)
+        if (settings.showHistoryPage) list.add(PageType.HISTORY)
         return list
     }
 
@@ -160,7 +166,8 @@ class MainActivity : Activity(), DashboardView.Listener {
 
     private fun resetKeepScreenOnTimer() {
         sleepScreenAppliedForSession = false
-        keepAliveDeadlineMs = System.currentTimeMillis() + settings.keepScreenHours * 3600_000L
+        val durationMs = settings.keepScreenMinutes * 60_000L
+        keepAliveDeadlineMs = System.currentTimeMillis() + durationMs
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         try {
             if (wakeLock == null) {
@@ -169,7 +176,7 @@ class MainActivity : Activity(), DashboardView.Listener {
                 wakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "PaperProWeather:KeepOn")
             }
             if (wakeLock?.isHeld == false) {
-                wakeLock?.acquire(settings.keepScreenHours * 3600_000L)
+                wakeLock?.acquire(durationMs)
             }
         } catch (_: Exception) {
         }
@@ -255,6 +262,8 @@ class MainActivity : Activity(), DashboardView.Listener {
             book = bookItem,
             movie = movieItem,
             economy = economyList,
+            english = englishItem,
+            history = historyData,
             bookBitmap = bookBitmap,
             movieBitmap = movieBitmap,
             activePageType = pages[currentPage],
@@ -306,6 +315,8 @@ class MainActivity : Activity(), DashboardView.Listener {
             val fetchedMovie = ContentRepository.fetchMovie()
             val fetchedMovieBmp = ContentRepository.fetchBitmap(fetchedMovie.posterUrl)
             val fetchedEconomy = ContentRepository.fetchEconomyIndicators()
+            val fetchedEnglish = ContentRepository.fetchEnglishStudy()
+            val fetchedHistory = ContentRepository.fetchHistoryToday()
 
             handler.post {
                 isFetching = false
@@ -327,6 +338,8 @@ class MainActivity : Activity(), DashboardView.Listener {
                 if (fetchedEconomy.isNotEmpty()) {
                     economyList = fetchedEconomy
                 }
+                englishItem = fetchedEnglish
+                historyData = fetchedHistory
                 if (weatherErr != null && fetchedWeather == null) {
                     val errPrefix = if (snapshot.language == "en") "Update failed: " else "갱신 실패: "
                     val errFallback = if (snapshot.language == "en") "Network error" else "네트워크 오류"
@@ -640,10 +653,17 @@ class MainActivity : Activity(), DashboardView.Listener {
         val spinnerLang = makeSpinner(langLabels, langIdx)
         addRow(makeLabel(if (isEn) "Language" else "언어 (Language)"), spinnerLang)
 
-        val hourChoices = arrayOf(1, 2, 3, 4, 6, 8, 12)
-        val hourLabels = hourChoices.map { if (isEn) "${it}h" else "${it}시간" }.toTypedArray()
-        val initialIdx = hourChoices.indexOf(settings.keepScreenHours).let { if (it >= 0) it else 0 }
-        val spinner = makeSpinner(hourLabels, initialIdx)
+        val keepMinChoices = arrayOf(5, 30, 60, 120, 180, 240, 360, 480, 720)
+        val keepLabels = keepMinChoices.map { mins ->
+            if (mins < 60) {
+                if (isEn) "${mins} min" else "${mins}분"
+            } else {
+                val h = mins / 60
+                if (isEn) "${h}h" else "${h}시간"
+            }
+        }.toTypedArray()
+        val initialIdx = keepMinChoices.indexOf(settings.keepScreenMinutes).let { if (it >= 0) it else 2 }
+        val spinner = makeSpinner(keepLabels, initialIdx)
         addRow(makeLabel(if (isEn) "Keep Screen On" else "화면 유지 시간"), spinner)
 
         val refreshChoices = arrayOf(30, 60, 120, 180, 360)
@@ -656,11 +676,11 @@ class MainActivity : Activity(), DashboardView.Listener {
         val spinnerRefresh = makeSpinner(refreshLabels, refreshIdx)
         addRow(makeLabel(if (isEn) "Auto Refresh (Wi-Fi)" else "업데이트 주기 (Wi-Fi)"), spinnerRefresh)
 
-        val rotateChoices = arrayOf(0, 1, 5, 10, 30, 60)
+        val rotateChoices = arrayOf(0, 1, 3, 5, 10)
         val rotateLabels = if (isEn) {
-            arrayOf("Off", "1 min", "5 min", "10 min", "30 min", "1 hour")
+            arrayOf("Off", "1 min", "3 min", "5 min", "10 min")
         } else {
-            arrayOf("사용 안 함", "1분마다", "5분마다", "10분마다", "30분마다", "1시간마다")
+            arrayOf("사용 안 함", "1분마다", "3분마다", "5분마다", "10분마다")
         }
         val rotateIdx = rotateChoices.indexOf(settings.pageAutoRotateMinutes).let { if (it >= 0) it else 0 }
         val spinnerRotate = makeSpinner(rotateLabels, rotateIdx)
@@ -787,6 +807,8 @@ class MainActivity : Activity(), DashboardView.Listener {
         val swBook = makeEinkSwitch(settings.showBookPage)
         val swMovie = makeEinkSwitch(settings.showMoviePage)
         val swEconomy = makeEinkSwitch(settings.showEconomyPage)
+        val swEnglish = makeEinkSwitch(settings.showEnglishPage)
+        val swHistory = makeEinkSwitch(settings.showHistoryPage)
         val swSleepScreen = makeEinkSwitch(settings.useDashboardAsSleepScreen)
 
         addRow(makeLabel(if (isEn) "Daily Quotes" else "오늘의 명언 (영화·애니 포함)"), swQuotes)
@@ -794,6 +816,8 @@ class MainActivity : Activity(), DashboardView.Listener {
         addRow(makeLabel(if (isEn) "Today's Book Pick" else "오늘의 책 추천"), swBook)
         addRow(makeLabel(if (isEn) "Today's Movie Spotlight" else "오늘의 영화 소개"), swMovie)
         addRow(makeLabel(if (isEn) "Key Economic Indicators" else "주요 경제지표 (그래프)"), swEconomy)
+        addRow(makeLabel(if (isEn) "Daily English Word & Sentence" else "오늘의 영단어 · 문장"), swEnglish)
+        addRow(makeLabel(if (isEn) "On This Day in History" else "오늘의 역사 · 사건"), swHistory)
 
         val sleepDiv = android.view.View(this).apply {
             setBackgroundColor(android.graphics.Color.rgb(180, 180, 180))
@@ -814,7 +838,7 @@ class MainActivity : Activity(), DashboardView.Listener {
             .setPositiveButton(if (isEn) "Save" else "저장") { _, _ ->
                 val chosenLang = langChoices[spinnerLang.selectedItemPosition]
                 val langChanged = chosenLang != settings.language
-                val chosenHours = hourChoices[spinner.selectedItemPosition]
+                val chosenKeepMinutes = keepMinChoices[spinner.selectedItemPosition]
                 val chosenRefresh = refreshChoices[spinnerRefresh.selectedItemPosition]
                 val chosenRotate = rotateChoices[spinnerRotate.selectedItemPosition]
                 val wc1 = SettingsStore.WORLD_CLOCKS[spinnerWc1.selectedItemPosition]
@@ -824,7 +848,7 @@ class MainActivity : Activity(), DashboardView.Listener {
                 val wasSleepScreen = settings.useDashboardAsSleepScreen
                 val wantSleepScreen = swSleepScreen.isChecked
                 settings = settings.copy(
-                    keepScreenHours = chosenHours,
+                    keepScreenMinutes = chosenKeepMinutes,
                     refreshIntervalMinutes = chosenRefresh,
                     pageAutoRotateMinutes = chosenRotate,
                     brightnessPercent = seekBar.progress * 10,
@@ -836,6 +860,8 @@ class MainActivity : Activity(), DashboardView.Listener {
                     showBookPage = swBook.isChecked,
                     showMoviePage = swMovie.isChecked,
                     showEconomyPage = swEconomy.isChecked,
+                    showEnglishPage = swEnglish.isChecked,
+                    showHistoryPage = swHistory.isChecked,
                     useDashboardAsSleepScreen = wantSleepScreen
                 )
                 settingsStore.save(settings)
