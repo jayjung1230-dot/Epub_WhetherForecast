@@ -697,17 +697,60 @@ class MainActivity : Activity(), DashboardView.Listener {
         }
         addRow(makeLabel(if (isEn) "Hourly & 7-Day Weather" else "시간별 · 주간 날씨"), fixedLabel)
 
-        fun makeSwitch(checked: Boolean): Switch {
+        fun makeEinkSwitch(checked: Boolean): Switch {
+            fun makeTrack(isOn: Boolean): android.graphics.drawable.GradientDrawable {
+                return android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    cornerRadius = dp(14).toFloat()
+                    setSize(dp(56), dp(28))
+                    if (isOn) {
+                        setColor(android.graphics.Color.rgb(20, 20, 20))
+                        setStroke(dp(2), android.graphics.Color.rgb(20, 20, 20))
+                    } else {
+                        setColor(android.graphics.Color.rgb(240, 240, 240))
+                        setStroke(dp(2), android.graphics.Color.rgb(80, 80, 80))
+                    }
+                }
+            }
+
+            fun makeThumb(isOn: Boolean): android.graphics.drawable.GradientDrawable {
+                return android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setSize(dp(24), dp(24))
+                    if (isOn) {
+                        setColor(android.graphics.Color.WHITE)
+                        setStroke(dp(2), android.graphics.Color.rgb(20, 20, 20))
+                    } else {
+                        setColor(android.graphics.Color.rgb(70, 70, 70))
+                        setStroke(dp(2), android.graphics.Color.rgb(240, 240, 240))
+                    }
+                }
+            }
+
+            val trackStates = android.graphics.drawable.StateListDrawable().apply {
+                addState(intArrayOf(android.R.attr.state_checked), makeTrack(true))
+                addState(intArrayOf(), makeTrack(false))
+            }
+            val thumbStates = android.graphics.drawable.StateListDrawable().apply {
+                addState(intArrayOf(android.R.attr.state_checked), makeThumb(true))
+                addState(intArrayOf(), makeThumb(false))
+            }
+
             return Switch(this).apply {
+                trackDrawable = trackStates
+                thumbDrawable = thumbStates
+                textOn = "ON"
+                textOff = "OFF"
+                switchMinWidth = dp(56)
                 isChecked = checked
             }
         }
 
-        val swQuotes = makeSwitch(settings.showQuotesPage)
-        val swNews = makeSwitch(settings.showNewsPage)
-        val swBook = makeSwitch(settings.showBookPage)
-        val swMovie = makeSwitch(settings.showMoviePage)
-        val swEconomy = makeSwitch(settings.showEconomyPage)
+        val swQuotes = makeEinkSwitch(settings.showQuotesPage)
+        val swNews = makeEinkSwitch(settings.showNewsPage)
+        val swBook = makeEinkSwitch(settings.showBookPage)
+        val swMovie = makeEinkSwitch(settings.showMoviePage)
+        val swEconomy = makeEinkSwitch(settings.showEconomyPage)
 
         addRow(makeLabel(if (isEn) "Daily Quotes" else "오늘의 명언 (영화·애니 포함)"), swQuotes)
         addRow(makeLabel(if (isEn) "Top News Headlines" else "주요 뉴스 헤드라인"), swNews)
