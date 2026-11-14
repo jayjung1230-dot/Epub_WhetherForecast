@@ -732,7 +732,7 @@ object WeatherRepository {
         return if (iso.length >= 16) iso.substring(11, 16) else "--:--"
     }
 
-    private val tlsSocketFactory: SSLSocketFactory by lazy {
+    internal val tlsSocketFactory: SSLSocketFactory by lazy {
         val ctx = SSLContext.getInstance("TLS")
         ctx.init(null, null, null)
         TLSSocketFactory(ctx.socketFactory)

@@ -701,28 +701,29 @@ class MainActivity : Activity(), DashboardView.Listener {
             fun makeTrack(isOn: Boolean): android.graphics.drawable.GradientDrawable {
                 return android.graphics.drawable.GradientDrawable().apply {
                     shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                    cornerRadius = dp(14).toFloat()
-                    setSize(dp(56), dp(28))
+                    cornerRadius = dp(6).toFloat()
+                    setSize(dp(64), dp(30))
                     if (isOn) {
                         setColor(android.graphics.Color.rgb(20, 20, 20))
                         setStroke(dp(2), android.graphics.Color.rgb(20, 20, 20))
                     } else {
-                        setColor(android.graphics.Color.rgb(240, 240, 240))
-                        setStroke(dp(2), android.graphics.Color.rgb(80, 80, 80))
+                        setColor(android.graphics.Color.rgb(248, 248, 248))
+                        setStroke(dp(2), android.graphics.Color.rgb(60, 60, 60))
                     }
                 }
             }
 
             fun makeThumb(isOn: Boolean): android.graphics.drawable.GradientDrawable {
                 return android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.OVAL
-                    setSize(dp(24), dp(24))
+                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    cornerRadius = dp(4).toFloat()
+                    setSize(dp(30), dp(24))
                     if (isOn) {
                         setColor(android.graphics.Color.WHITE)
                         setStroke(dp(2), android.graphics.Color.rgb(20, 20, 20))
                     } else {
-                        setColor(android.graphics.Color.rgb(70, 70, 70))
-                        setStroke(dp(2), android.graphics.Color.rgb(240, 240, 240))
+                        setColor(android.graphics.Color.rgb(55, 55, 55))
+                        setStroke(dp(2), android.graphics.Color.rgb(248, 248, 248))
                     }
                 }
             }
@@ -741,7 +742,9 @@ class MainActivity : Activity(), DashboardView.Listener {
                 thumbDrawable = thumbStates
                 textOn = "ON"
                 textOff = "OFF"
-                switchMinWidth = dp(56)
+                thumbTextPadding = dp(6)
+                switchMinWidth = dp(64)
+                setTextColor(android.graphics.Color.BLACK)
                 isChecked = checked
             }
         }

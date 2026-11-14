@@ -580,7 +580,8 @@ object ContentRepository {
             castOttKo = "출연: 벤 스틸러, 크리스틴 위그, 숀 펜  |  OTT 스트리밍 추천",
             castOttEn = "Cast: Ben Stiller, Kristen Wiig, Sean Penn  |  Feel-Good Classic",
             posterTitleTop = "WALTER",
-            posterTitleBottom = "MITTY"
+            posterTitleBottom = "MITTY",
+            posterUrl = "https://upload.wikimedia.org/wikipedia/en/f/f2/The_Secret_Life_of_Walter_Mitty_2013_poster.jpg"
         ),
         MovieItem(
             titleKo = "어바웃 타임",
@@ -600,7 +601,8 @@ object ContentRepository {
             castOttKo = "출연: 도널 글리슨, 레이첼 맥아담스, 빌 나이  |  인생 영화",
             castOttEn = "Cast: Domhnall Gleeson, Rachel McAdams, Bill Nighy",
             posterTitleTop = "ABOUT",
-            posterTitleBottom = "TIME"
+            posterTitleBottom = "TIME",
+            posterUrl = "https://upload.wikimedia.org/wikipedia/en/7/7c/About_Time_%282013_film%29_Poster.jpg"
         ),
         MovieItem(
             titleKo = "인턴",
@@ -620,7 +622,8 @@ object ContentRepository {
             castOttKo = "출연: 로버트 드 니로, 앤 해서웨이  |  주말 힐링 추천",
             castOttEn = "Cast: Robert De Niro, Anne Hathaway  |  Warm Workplace Drama",
             posterTitleTop = "THE",
-            posterTitleBottom = "INTERN"
+            posterTitleBottom = "INTERN",
+            posterUrl = "https://upload.wikimedia.org/wikipedia/en/c/c9/The_Intern_Poster.jpg"
         ),
         MovieItem(
             titleKo = "인터스텔라",
@@ -640,7 +643,8 @@ object ContentRepository {
             castOttKo = "출연: 매튜 맥커너히, 앤 해서웨이, 제시카 차스테인  |  SF 명작",
             castOttEn = "Cast: Matthew McConaughey, Anne Hathaway, Jessica Chastain",
             posterTitleTop = "INTER",
-            posterTitleBottom = "STELLAR"
+            posterTitleBottom = "STELLAR",
+            posterUrl = "https://upload.wikimedia.org/wikipedia/en/b/bc/Interstellar_film_poster.jpg"
         ),
         MovieItem(
             titleKo = "그린 북",
@@ -660,7 +664,8 @@ object ContentRepository {
             castOttKo = "출연: 비고 모텐슨, 마허샬라 알리  |  아카데미 작품상",
             castOttEn = "Cast: Viggo Mortensen, Mahershala Ali  |  Oscar Best Picture",
             posterTitleTop = "GREEN",
-            posterTitleBottom = "BOOK"
+            posterTitleBottom = "BOOK",
+            posterUrl = "https://upload.wikimedia.org/wikipedia/en/5/5b/Green_Book_%282018_poster%29.png"
         ),
         MovieItem(
             titleKo = "리틀 포레스트",
@@ -680,7 +685,8 @@ object ContentRepository {
             castOttKo = "출연: 김태리, 류준열, 진기주  |  사계절 힐링 영화",
             castOttEn = "Cast: Kim Tae-ri, Ryu Jun-yeol, Jin Ki-joo",
             posterTitleTop = "LITTLE",
-            posterTitleBottom = "FOREST"
+            posterTitleBottom = "FOREST",
+            posterUrl = "https://upload.wikimedia.org/wikipedia/en/a/a4/Little_Forest_%28%EB%A6%AC%ED%8B%80_%ED%8F%AC%EB%A0%88%EC%8A%A4%ED%8A%B8%29.jpg"
         )
     )
 
@@ -688,15 +694,26 @@ object ContentRepository {
 
     fun fetchMovie(): MovieItem = CURATED_MOVIES[Random.nextInt(CURATED_MOVIES.size)]
 
-    fun fetchBitmap(urlStr: String): Bitmap? {
+    fun fetchBitmap(urlStr: String, redirectsLeft: Int = 3): Bitmap? {
         if (urlStr.isBlank()) return null
         return try {
             val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 6000
-                readTimeout = 6000
-                setRequestProperty("User-Agent", "PaperProWeather/1.0")
+                if (this is javax.net.ssl.HttpsURLConnection) {
+                    sslSocketFactory = WeatherRepository.tlsSocketFactory
+                }
+                connectTimeout = 7000
+                readTimeout = 7000
+                instanceFollowRedirects = true
+                setRequestProperty("User-Agent", "PaperProWeather/1.0 (https://github.com/jayjung1230-dot/Epub_WhetherForecast)")
             }
-            if (conn.responseCode in 200..299) {
+            val code = conn.responseCode
+            if (code in listOf(301, 302, 303, 307, 308) && redirectsLeft > 0) {
+                val loc = conn.getHeaderField("Location")
+                if (!loc.isNullOrBlank()) {
+                    return fetchBitmap(loc, redirectsLeft - 1)
+                }
+            }
+            if (code in 200..299) {
                 conn.inputStream.use { BitmapFactory.decodeStream(it) }
             } else null
         } catch (_: Exception) {
