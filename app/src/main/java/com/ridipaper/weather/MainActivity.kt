@@ -5,6 +5,7 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
 import android.os.Bundle
@@ -38,6 +39,7 @@ import com.ridipaper.weather.model.QuoteItem
 import com.ridipaper.weather.model.WeatherData
 import com.ridipaper.weather.service.LibraryWatcherService
 import com.ridipaper.weather.ui.DashboardView
+import com.ridipaper.weather.util.SleepScreenManager
 import kotlin.concurrent.thread
 
 class MainActivity : Activity(), DashboardView.Listener {
@@ -75,6 +77,7 @@ class MainActivity : Activity(), DashboardView.Listener {
 
     private val handler = Handler(Looper.getMainLooper())
     private var keepAliveDeadlineMs: Long = 0L
+    private var sleepScreenAppliedForSession = false
     private var lastFetchMs: Long = 0L
     private var lastPageChangeMs: Long = System.currentTimeMillis()
     private var isFetching = false
@@ -83,7 +86,7 @@ class MainActivity : Activity(), DashboardView.Listener {
         override fun run() {
             val now = System.currentTimeMillis()
             if (keepAliveDeadlineMs > 0L && now >= keepAliveDeadlineMs) {
-                releaseKeepScreenOn()
+                onKeepAliveExpired()
             }
             val refreshMs = settings.refreshIntervalMinutes * 60_000L
             if (isWifiConnected() && now - lastFetchMs >= refreshMs) {
@@ -156,6 +159,7 @@ class MainActivity : Activity(), DashboardView.Listener {
     }
 
     private fun resetKeepScreenOnTimer() {
+        sleepScreenAppliedForSession = false
         keepAliveDeadlineMs = System.currentTimeMillis() + settings.keepScreenHours * 3600_000L
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         try {
@@ -168,6 +172,35 @@ class MainActivity : Activity(), DashboardView.Listener {
                 wakeLock?.acquire(settings.keepScreenHours * 3600_000L)
             }
         } catch (_: Exception) {
+        }
+    }
+
+    private fun onKeepAliveExpired() {
+        releaseKeepScreenOn()
+        if (settings.useDashboardAsSleepScreen &&
+            !sleepScreenAppliedForSession &&
+            dashboardView.width > 0 &&
+            dashboardView.height > 0
+        ) {
+            sleepScreenAppliedForSession = true
+            try {
+                val bmp = Bitmap.createBitmap(
+                    dashboardView.width,
+                    dashboardView.height,
+                    Bitmap.Config.ARGB_8888
+                )
+                val canvas = Canvas(bmp)
+                dashboardView.draw(canvas)
+                val appCtx = applicationContext
+                thread {
+                    try {
+                        SleepScreenManager.applyDashboardSleepScreen(appCtx, bmp)
+                    } finally {
+                        bmp.recycle()
+                    }
+                }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -754,12 +787,22 @@ class MainActivity : Activity(), DashboardView.Listener {
         val swBook = makeEinkSwitch(settings.showBookPage)
         val swMovie = makeEinkSwitch(settings.showMoviePage)
         val swEconomy = makeEinkSwitch(settings.showEconomyPage)
+        val swSleepScreen = makeEinkSwitch(settings.useDashboardAsSleepScreen)
 
         addRow(makeLabel(if (isEn) "Daily Quotes" else "오늘의 명언 (영화·애니 포함)"), swQuotes)
         addRow(makeLabel(if (isEn) "Top News Headlines" else "주요 뉴스 헤드라인"), swNews)
         addRow(makeLabel(if (isEn) "Today's Book Pick" else "오늘의 책 추천"), swBook)
         addRow(makeLabel(if (isEn) "Today's Movie Spotlight" else "오늘의 영화 소개"), swMovie)
         addRow(makeLabel(if (isEn) "Key Economic Indicators" else "주요 경제지표 (그래프)"), swEconomy)
+
+        val sleepDiv = android.view.View(this).apply {
+            setBackgroundColor(android.graphics.Color.rgb(180, 180, 180))
+        }
+        container.addView(sleepDiv, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply {
+            topMargin = dp(6)
+            bottomMargin = dp(6)
+        })
+        addRow(makeLabel(if (isEn) "Use as Sleep Screen on Timeout" else "유지시간 만료 시 대기화면 적용"), swSleepScreen)
 
         val scrollView = ScrollView(this).apply {
             addView(container)
@@ -778,6 +821,8 @@ class MainActivity : Activity(), DashboardView.Listener {
                 val wc2 = SettingsStore.WORLD_CLOCKS[spinnerWc2.selectedItemPosition]
                 val chosenWc1 = if (wc1.timeZoneId.isBlank()) "" else "${wc1.cityName}|${wc1.timeZoneId}"
                 val chosenWc2 = if (wc2.timeZoneId.isBlank()) "" else "${wc2.cityName}|${wc2.timeZoneId}"
+                val wasSleepScreen = settings.useDashboardAsSleepScreen
+                val wantSleepScreen = swSleepScreen.isChecked
                 settings = settings.copy(
                     keepScreenHours = chosenHours,
                     refreshIntervalMinutes = chosenRefresh,
@@ -790,9 +835,16 @@ class MainActivity : Activity(), DashboardView.Listener {
                     showNewsPage = swNews.isChecked,
                     showBookPage = swBook.isChecked,
                     showMoviePage = swMovie.isChecked,
-                    showEconomyPage = swEconomy.isChecked
+                    showEconomyPage = swEconomy.isChecked,
+                    useDashboardAsSleepScreen = wantSleepScreen
                 )
                 settingsStore.save(settings)
+                val appCtx = applicationContext
+                if (wantSleepScreen) {
+                    thread { SleepScreenManager.backupOriginalIfNeeded(appCtx) }
+                } else if (wasSleepScreen) {
+                    thread { SleepScreenManager.restoreOriginalSleepScreen(appCtx) }
+                }
                 lastPageChangeMs = System.currentTimeMillis()
                 applyBrightness(settings.brightnessPercent)
                 resetKeepScreenOnTimer()

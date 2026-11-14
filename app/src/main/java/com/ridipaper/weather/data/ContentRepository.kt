@@ -581,7 +581,7 @@ object ContentRepository {
             castOttEn = "Cast: Ben Stiller, Kristen Wiig, Sean Penn  |  Feel-Good Classic",
             posterTitleTop = "WALTER",
             posterTitleBottom = "MITTY",
-            posterUrl = "https://upload.wikimedia.org/wikipedia/en/f/f2/The_Secret_Life_of_Walter_Mitty_2013_poster.jpg"
+            posterUrl = "http://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fen%2Ff%2Ff2%2FThe_Secret_Life_of_Walter_Mitty_2013_poster.jpg&w=400&output=jpg"
         ),
         MovieItem(
             titleKo = "어바웃 타임",
@@ -602,7 +602,7 @@ object ContentRepository {
             castOttEn = "Cast: Domhnall Gleeson, Rachel McAdams, Bill Nighy",
             posterTitleTop = "ABOUT",
             posterTitleBottom = "TIME",
-            posterUrl = "https://upload.wikimedia.org/wikipedia/en/7/7c/About_Time_%282013_film%29_Poster.jpg"
+            posterUrl = "http://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fen%2F7%2F7c%2FAbout_Time_%25282013_film%2529_Poster.jpg&w=400&output=jpg"
         ),
         MovieItem(
             titleKo = "인턴",
@@ -623,7 +623,7 @@ object ContentRepository {
             castOttEn = "Cast: Robert De Niro, Anne Hathaway  |  Warm Workplace Drama",
             posterTitleTop = "THE",
             posterTitleBottom = "INTERN",
-            posterUrl = "https://upload.wikimedia.org/wikipedia/en/c/c9/The_Intern_Poster.jpg"
+            posterUrl = "http://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fen%2Fc%2Fc9%2FThe_Intern_Poster.jpg&w=400&output=jpg"
         ),
         MovieItem(
             titleKo = "인터스텔라",
@@ -644,7 +644,7 @@ object ContentRepository {
             castOttEn = "Cast: Matthew McConaughey, Anne Hathaway, Jessica Chastain",
             posterTitleTop = "INTER",
             posterTitleBottom = "STELLAR",
-            posterUrl = "https://upload.wikimedia.org/wikipedia/en/b/bc/Interstellar_film_poster.jpg"
+            posterUrl = "http://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fen%2Fb%2Fbc%2FInterstellar_film_poster.jpg&w=400&output=jpg"
         ),
         MovieItem(
             titleKo = "그린 북",
@@ -665,7 +665,7 @@ object ContentRepository {
             castOttEn = "Cast: Viggo Mortensen, Mahershala Ali  |  Oscar Best Picture",
             posterTitleTop = "GREEN",
             posterTitleBottom = "BOOK",
-            posterUrl = "https://upload.wikimedia.org/wikipedia/en/5/5b/Green_Book_%282018_poster%29.png"
+            posterUrl = "http://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fen%2F5%2F5b%2FGreen_Book_%25282018_poster%2529.png&w=400&output=jpg"
         ),
         MovieItem(
             titleKo = "리틀 포레스트",
@@ -686,7 +686,7 @@ object ContentRepository {
             castOttEn = "Cast: Kim Tae-ri, Ryu Jun-yeol, Jin Ki-joo",
             posterTitleTop = "LITTLE",
             posterTitleBottom = "FOREST",
-            posterUrl = "https://upload.wikimedia.org/wikipedia/en/a/a4/Little_Forest_%28%EB%A6%AC%ED%8B%80_%ED%8F%AC%EB%A0%88%EC%8A%A4%ED%8A%B8%29.jpg"
+            posterUrl = "http://wsrv.nl/?url=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fen%2Fa%2Fa4%2FLittle_Forest_%2528%25EB%25A6%25AC%25ED%258B%2580_%25ED%258F%25AC%25EB%25A0%2588%25EC%258A%25A4%25ED%258A%25B8%2529.jpg&w=400&output=jpg"
         )
     )
 

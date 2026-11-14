@@ -40,7 +40,8 @@ class SettingsStore(context: Context) {
             showNewsPage = prefs.getBoolean("show_news_page", true),
             showBookPage = prefs.getBoolean("show_book_page", true),
             showMoviePage = prefs.getBoolean("show_movie_page", true),
-            showEconomyPage = prefs.getBoolean("show_economy_page", true)
+            showEconomyPage = prefs.getBoolean("show_economy_page", true),
+            useDashboardAsSleepScreen = prefs.getBoolean("use_dashboard_as_sleep_screen", false)
         )
     }
 
@@ -63,6 +64,7 @@ class SettingsStore(context: Context) {
             .putBoolean("show_book_page", settings.showBookPage)
             .putBoolean("show_movie_page", settings.showMoviePage)
             .putBoolean("show_economy_page", settings.showEconomyPage)
+            .putBoolean("use_dashboard_as_sleep_screen", settings.useDashboardAsSleepScreen)
             .apply()
     }
 

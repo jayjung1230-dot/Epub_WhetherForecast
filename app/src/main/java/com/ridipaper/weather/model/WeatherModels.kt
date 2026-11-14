@@ -157,5 +157,6 @@ data class DashboardSettings(
     val showNewsPage: Boolean = true,
     val showBookPage: Boolean = true,
     val showMoviePage: Boolean = true,
-    val showEconomyPage: Boolean = true
+    val showEconomyPage: Boolean = true,
+    val useDashboardAsSleepScreen: Boolean = false
 )
