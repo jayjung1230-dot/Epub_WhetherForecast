@@ -4,7 +4,9 @@ data class HourlyItem(
     val timeLabel: String,
     val weatherCode: Int,
     val temp: Int,
-    val precipProb: Int
+    val precipProb: Int,
+    val isCurrent: Boolean = false,
+    val isTomorrow: Boolean = false
 )
 
 data class DailyItem(
@@ -58,7 +60,14 @@ data class QuoteItem(
     val textKo: String,
     val textEn: String,
     val author: String,
-    val tag: String
+    val tag: String,
+    val authorEn: String = "",
+    val categoryKo: String = "고전 명언",
+    val categoryEn: String = "Classic Quote",
+    val backgroundKo: String = "",
+    val backgroundEn: String = "",
+    val interpretationKo: String = "",
+    val interpretationEn: String = ""
 )
 
 data class NewsItem(

@@ -149,21 +149,38 @@ object WeatherRepository {
 
         val currentPrecipProb = if (currentIdx in 0 until hPops.length()) hPops.optInt(currentIdx, 0) else 0
 
-        // Next 8 hourly slots at 3-hour intervals
-        val hourlyList = ArrayList<HourlyItem>(8)
-        var stepIdx = currentIdx + 2
-        while (hourlyList.size < 8 && stepIdx < hTimes.length()) {
-            val tStr = hTimes.getString(stepIdx) // yyyy-MM-ddTHH:mm
-            val hourLabel = tStr.substring(11, 13) + "시"
+        // Today 00:00 ~ Tomorrow 06:00 at 3-hour intervals (11 slots)
+        val todayStartStr = currentTimeStr.substring(0, 10) + "T00:00"
+        var todayStartIdx = -1
+        for (i in 0 until hTimes.length()) {
+            if (hTimes.getString(i) == todayStartStr) {
+                todayStartIdx = i
+                break
+            }
+        }
+        if (todayStartIdx < 0) todayStartIdx = 24
+
+        val currentHourVal = currentTimeStr.substring(11, 13).toIntOrNull() ?: 0
+        val currentSlotHour = (currentHourVal / 3) * 3
+
+        val hourlyList = ArrayList<HourlyItem>(11)
+        for (offset in 0..30 step 3) {
+            val idx = todayStartIdx + offset
+            if (idx !in 0 until hTimes.length()) break
+            val tStr = hTimes.getString(idx) // yyyy-MM-ddTHH:mm
+            val slotHour = tStr.substring(11, 13).toIntOrNull() ?: 0
+            val hourLabel = String.format(Locale.US, "%02d시", slotHour)
+            val isTomorrow = offset >= 24
             hourlyList.add(
                 HourlyItem(
                     timeLabel = hourLabel,
-                    weatherCode = hCodes.optInt(stepIdx, 0),
-                    temp = hTemps.optDouble(stepIdx, 0.0).roundToInt(),
-                    precipProb = hPops.optInt(stepIdx, 0)
+                    weatherCode = hCodes.optInt(idx, 0),
+                    temp = hTemps.optDouble(idx, 0.0).roundToInt(),
+                    precipProb = hPops.optInt(idx, 0),
+                    isCurrent = !isTomorrow && slotHour == currentSlotHour,
+                    isTomorrow = isTomorrow
                 )
             )
-            stepIdx += 3
         }
 
         // Daily: past_days=1 means index 0 is yesterday, index 1 is today, 2..7 are next 6 days
@@ -315,7 +332,8 @@ object WeatherRepository {
                             timeLabel = kstHourFmt.format(dateObj) + if (isEn) ":00" else "시",
                             weatherCode = wCode,
                             temp = temp.roundToInt(),
-                            precipProb = pop
+                            precipProb = pop,
+                            isCurrent = hourlyList.isEmpty()
                         )
                     )
                     lastSlotMs = ms
@@ -483,27 +501,29 @@ object WeatherRepository {
         val sunset = parseAmPmTime(astro?.optString("sunset", "") ?: "")
 
         val nowHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        val hourlyList = ArrayList<HourlyItem>(8)
+        val currentSlotHour = (nowHour / 3) * 3
+        val hourlyList = ArrayList<HourlyItem>(11)
         var currentPrecipProb = 0
         var foundCurrent = false
-        for (d in 0 until days.length()) {
+        for (d in 0 until minOf(2, days.length())) {
             val hArr = days.getJSONObject(d).getJSONArray("hourly")
             for (h in 0 until hArr.length()) {
                 val hObj = hArr.getJSONObject(h)
                 val slotHour = (hObj.optString("time", "0").toIntOrNull() ?: 0) / 100
-                if (d == 0 && slotHour < nowHour) continue
-                if (!foundCurrent) {
+                if (d == 0 && !foundCurrent && slotHour >= nowHour) {
                     currentPrecipProb = hObj.optString("chanceofrain", "0").toIntOrNull() ?: 0
                     foundCurrent = true
-                    continue
                 }
-                if (hourlyList.size < 8) {
+                if (d == 1 && slotHour > 6) continue
+                if (hourlyList.size < 11) {
                     hourlyList.add(
                         HourlyItem(
                             timeLabel = String.format(Locale.US, if (isEn) "%02d:00" else "%02d시", slotHour),
                             weatherCode = wwoToWmoCode(hObj.optString("weatherCode", "113").toIntOrNull() ?: 113),
                             temp = hObj.optString("tempC", "0").toIntOrNull() ?: 0,
-                            precipProb = hObj.optString("chanceofrain", "0").toIntOrNull() ?: 0
+                            precipProb = hObj.optString("chanceofrain", "0").toIntOrNull() ?: 0,
+                            isCurrent = (d == 0 && slotHour == currentSlotHour),
+                            isTomorrow = (d == 1)
                         )
                     )
                 }

@@ -359,72 +359,200 @@ class DashboardView(context: Context) : View(context) {
     private fun drawWeatherLowerSection(canvas: Canvas, data: WeatherData, w: Float, m: Float, s: Float) {
         val lang = settings.language
         val isEn = lang == "en"
-        // --- 5. Hourly Forecast ---
+        // --- 5. Hourly Forecast (Today 00:00 ~ Tomorrow 06:00 + Temp Graph + Current Slot Highlight) ---
         val hrTop = 906f * s
-        val hrBot = 1186f * s
+        val hrBot = 1254f * s
         drawCard(canvas, RectF(m, hrTop, w - m, hrBot), 22f * s, Color.WHITE, 3f * s)
 
         textPaint.color = Color.BLACK
         textPaint.typeface = Typeface.DEFAULT_BOLD
         textPaint.textSize = 32f * s
-        canvas.drawText(if (isEn) "Hourly Forecast" else "시간별 날씨", m + 28f * s, hrTop + 52f * s, textPaint)
+        val hrTitle = if (isEn) "Hourly Forecast" else "시간별 날씨"
+        canvas.drawText(hrTitle, m + 28f * s, hrTop + 50f * s, textPaint)
+        val hrTitleW = textPaint.measureText(hrTitle)
 
-        strokePaint.color = Color.rgb(160, 160, 160)
+        textPaint.color = Color.rgb(85, 85, 85)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 23f * s
+        val hrSub = if (isEn) "Today 00:00 ~ Next 06:00" else "오늘 00시 ~ 내일 06시"
+        canvas.drawText(hrSub, m + 28f * s + hrTitleW + 18f * s, hrTop + 49f * s, textPaint)
+
+        val curItem = data.hourly.firstOrNull { it.isCurrent }
+        if (curItem != null) {
+            val curHour = curItem.timeLabel.take(2).toIntOrNull() ?: 0
+            val nextHour = (curHour + 3) % 24
+            val badgeText = if (isEn) {
+                String.format(Locale.US, "Now: %02d:00~%02d:00", curHour, nextHour)
+            } else {
+                String.format(Locale.US, "현재 구간: %02d시~%02d시", curHour, nextHour)
+            }
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            textPaint.textSize = 21f * s
+            val bw = textPaint.measureText(badgeText) + 32f * s
+            val badgeRect = RectF(w - m - 24f * s - bw, hrTop + 18f * s, w - m - 24f * s, hrTop + 58f * s)
+            drawCard(canvas, badgeRect, 10f * s, Color.rgb(24, 24, 24), 2f * s)
+            textPaint.color = Color.WHITE
+            canvas.drawText(badgeText, badgeRect.left + 16f * s, hrTop + 45f * s, textPaint)
+        }
+
+        strokePaint.color = Color.rgb(170, 170, 170)
         strokePaint.strokeWidth = 2f * s
-        canvas.drawLine(m + 24f * s, hrTop + 72f * s, w - m - 24f * s, hrTop + 72f * s, strokePaint)
+        canvas.drawLine(m + 24f * s, hrTop + 70f * s, w - m - 24f * s, hrTop + 70f * s, strokePaint)
 
         if (data.hourly.isNotEmpty()) {
-            val innerW = (w - 2f * m - 40f * s) / data.hourly.size
+            val padX = 20f * s
+            val innerW = (w - 2f * m - 2f * padX) / data.hourly.size
+            val colTop = hrTop + 82f * s
+            val colBot = hrBot - 14f * s
+
+            // 1) Column backgrounds and dividers
             for (i in data.hourly.indices) {
                 val item = data.hourly[i]
-                val cx = m + 20f * s + i * innerW + innerW / 2f
-                if (i > 0) {
-                    val vx = m + 20f * s + i * innerW
-                    strokePaint.color = Color.rgb(215, 215, 215)
-                    strokePaint.strokeWidth = 2f * s
-                    canvas.drawLine(vx, hrTop + 88f * s, vx, hrBot - 22f * s, strokePaint)
+                val x1 = m + padX + i * innerW
+                val x2 = x1 + innerW
+                if (item.isCurrent) {
+                    drawCard(
+                        canvas,
+                        RectF(x1 + 3f * s, colTop, x2 - 3f * s, colBot),
+                        14f * s,
+                        Color.rgb(236, 236, 236),
+                        3f * s
+                    )
+                } else if (i > 0) {
+                    if (item.isTomorrow && item.timeLabel.startsWith("00")) {
+                        strokePaint.color = Color.rgb(90, 90, 90)
+                        strokePaint.strokeWidth = 2f * s
+                        var dy = colTop + 6f * s
+                        while (dy < colBot - 6f * s) {
+                            canvas.drawLine(x1, dy, x1, minOf(dy + 6f * s, colBot - 6f * s), strokePaint)
+                            dy += 12f * s
+                        }
+                    } else {
+                        strokePaint.color = Color.rgb(224, 224, 224)
+                        strokePaint.strokeWidth = 2f * s
+                        canvas.drawLine(x1, colTop + 8f * s, x1, colBot - 8f * s, strokePaint)
+                    }
                 }
-                textPaint.color = Color.rgb(50, 50, 50)
-                textPaint.typeface = Typeface.DEFAULT_BOLD
-                textPaint.textSize = 26f * s
-                val tw = textPaint.measureText(item.timeLabel)
-                canvas.drawText(item.timeLabel, cx - tw / 2f, hrTop + 114f * s, textPaint)
+            }
+
+            // 2) Temperature graph coordinates
+            val tMin = data.hourly.minOf { it.temp }
+            val tMax = data.hourly.maxOf { it.temp }
+            val tSpan = maxOf(1, tMax - tMin).toFloat()
+            val graphTop = hrTop + 216f * s
+            val graphBot = hrTop + 286f * s
+
+            val ptsX = FloatArray(data.hourly.size)
+            val ptsY = FloatArray(data.hourly.size)
+            for (i in data.hourly.indices) {
+                ptsX[i] = m + padX + i * innerW + innerW / 2f
+                val norm = (data.hourly[i].temp - tMin) / tSpan
+                ptsY[i] = graphBot - norm * (graphBot - graphTop)
+            }
+
+            // Subtle dashed mid-line
+            val midY = (graphTop + graphBot) / 2f
+            strokePaint.color = Color.rgb(215, 215, 215)
+            strokePaint.strokeWidth = 1.5f * s
+            var dx = m + padX + 16f * s
+            val maxDx = w - m - padX - 16f * s
+            while (dx < maxDx) {
+                canvas.drawLine(dx, midY, minOf(dx + 6f * s, maxDx), midY, strokePaint)
+                dx += 14f * s
+            }
+
+            // Polyline connecting temperatures
+            strokePaint.color = Color.rgb(40, 40, 40)
+            strokePaint.strokeWidth = 4f * s
+            for (i in 0 until data.hourly.size - 1) {
+                canvas.drawLine(ptsX[i], ptsY[i], ptsX[i + 1], ptsY[i + 1], strokePaint)
+            }
+
+            // 3) Per-column labels, icons, graph nodes, and precip
+            for (i in data.hourly.indices) {
+                val item = data.hourly[i]
+                val cx = ptsX[i]
+                val py = ptsY[i]
+
+                val displayTime = if (isEn) item.timeLabel.replace("시", ":00") else item.timeLabel
+                if (item.isCurrent) {
+                    val pillRect = RectF(cx - 42f * s, colTop + 8f * s, cx + 42f * s, colTop + 42f * s)
+                    drawCard(canvas, pillRect, 10f * s, Color.rgb(20, 20, 20), 2f * s)
+                    textPaint.color = Color.WHITE
+                    textPaint.typeface = Typeface.DEFAULT_BOLD
+                    textPaint.textSize = 22f * s
+                    val tw = textPaint.measureText(displayTime)
+                    canvas.drawText(displayTime, cx - tw / 2f, colTop + 33f * s, textPaint)
+                } else {
+                    val isMidnightTmr = item.isTomorrow && item.timeLabel.startsWith("00")
+                    if (isMidnightTmr) {
+                        textPaint.color = Color.rgb(80, 80, 80)
+                        textPaint.typeface = Typeface.DEFAULT_BOLD
+                        textPaint.textSize = 15f * s
+                        val nextTag = if (isEn) "Next" else "내일"
+                        canvas.drawText(nextTag, cx - textPaint.measureText(nextTag) / 2f, colTop + 15f * s, textPaint)
+                    }
+                    val tBaseline = if (isMidnightTmr) colTop + 38f * s else colTop + 34f * s
+                    textPaint.color = Color.rgb(40, 40, 40)
+                    textPaint.typeface = if (item.timeLabel.startsWith("00")) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+                    textPaint.textSize = 22f * s
+                    canvas.drawText(displayTime, cx - textPaint.measureText(displayTime) / 2f, tBaseline, textPaint)
+                }
 
                 strokePaint.color = Color.BLACK
-                strokePaint.strokeWidth = 3f * s
-                WeatherIconDrawer.draw(canvas, item.weatherCode, cx, hrTop + 162f * s, 0.80f * s, strokePaint, fillPaint)
+                strokePaint.strokeWidth = 2.6f * s
+                WeatherIconDrawer.draw(canvas, item.weatherCode, cx, hrTop + 150f * s, 0.62f * s, strokePaint, fillPaint)
 
+                // Temperature above node
                 textPaint.color = Color.BLACK
-                textPaint.textSize = 34f * s
+                textPaint.typeface = Typeface.DEFAULT_BOLD
+                textPaint.textSize = 26f * s
                 val tempStr = "${item.temp}°"
-                canvas.drawText(tempStr, cx - textPaint.measureText(tempStr) / 2f, hrTop + 230f * s, textPaint)
+                canvas.drawText(tempStr, cx - textPaint.measureText(tempStr) / 2f, py - 16f * s, textPaint)
 
-                textPaint.color = Color.rgb(80, 80, 80)
-                textPaint.typeface = Typeface.DEFAULT
-                textPaint.textSize = 20f * s
-                val popStr = if (isEn) "Precip ${item.precipProb}%" else "강수 ${item.precipProb}%"
-                canvas.drawText(popStr, cx - textPaint.measureText(popStr) / 2f, hrTop + 264f * s, textPaint)
+                // Graph node
+                if (item.isCurrent) {
+                    fillPaint.color = Color.BLACK
+                    fillPaint.style = Paint.Style.FILL
+                    canvas.drawCircle(cx, py, 9f * s, fillPaint)
+                    fillPaint.color = Color.WHITE
+                    canvas.drawCircle(cx, py, 3.5f * s, fillPaint)
+                } else {
+                    fillPaint.color = Color.WHITE
+                    fillPaint.style = Paint.Style.FILL
+                    canvas.drawCircle(cx, py, 6f * s, fillPaint)
+                    strokePaint.color = Color.rgb(20, 20, 20)
+                    strokePaint.strokeWidth = 3f * s
+                    canvas.drawCircle(cx, py, 6f * s, strokePaint)
+                }
+
+                // Precipitation %
+                textPaint.color = if (item.isCurrent) Color.rgb(20, 20, 20) else Color.rgb(90, 90, 90)
+                textPaint.typeface = if (item.isCurrent) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+                textPaint.textSize = 19f * s
+                val popStr = "${item.precipProb}%"
+                canvas.drawText(popStr, cx - textPaint.measureText(popStr) / 2f, colBot - 12f * s, textPaint)
             }
         }
 
         // --- 6. Weekly Forecast (7 Days) ---
-        val wkTop = 1216f * s
+        val wkTop = 1278f * s
         val wkBot = 1776f * s
         drawCard(canvas, RectF(m, wkTop, w - m, wkBot), 22f * s, Color.WHITE, 3f * s)
 
         textPaint.color = Color.BLACK
         textPaint.typeface = Typeface.DEFAULT_BOLD
         textPaint.textSize = 32f * s
-        canvas.drawText(if (isEn) "7-Day Forecast" else "주간 날씨 (7일 예보)", m + 28f * s, wkTop + 52f * s, textPaint)
+        canvas.drawText(if (isEn) "7-Day Forecast" else "주간 날씨 (7일 예보)", m + 28f * s, wkTop + 48f * s, textPaint)
 
         strokePaint.color = Color.rgb(160, 160, 160)
         strokePaint.strokeWidth = 2f * s
-        canvas.drawLine(m + 24f * s, wkTop + 72f * s, w - m - 24f * s, wkTop + 72f * s, strokePaint)
+        canvas.drawLine(m + 24f * s, wkTop + 68f * s, w - m - 24f * s, wkTop + 68f * s, strokePaint)
 
         if (data.daily.isNotEmpty()) {
             val gMin = data.daily.minOf { it.tempMin }.toFloat()
             val gMax = data.daily.maxOf { it.tempMax }.toFloat().let { if (it <= gMin) gMin + 1f else it }
-            val rowH = (wkBot - (wkTop + 82f * s) - 14f * s) / data.daily.size
+            val rowH = (wkBot - (wkTop + 78f * s) - 12f * s) / data.daily.size
             val barX1 = m + 740f * s
             val barX2 = w - m - 190f * s
 
@@ -484,25 +612,30 @@ class DashboardView(context: Context) : View(context) {
         val boxBot = 1776f * s
         drawCard(canvas, RectF(m, boxTop, w - m, boxBot), 24f * s, Color.WHITE, 3f * s)
 
+        val q1 = mainQuote
+        val headerTag = q1?.tag ?: if (isEn) "Effort & Potential" else "노력과 가능성"
         textPaint.color = Color.BLACK
         textPaint.typeface = Typeface.DEFAULT_BOLD
         textPaint.textSize = 32f * s
         canvas.drawText(
-            if (isEn) "Daily Quotes  ·  Effort & Potential" else "오늘의 명언  ·  노력과 가능성",
+            if (isEn) "Daily Quotes  ·  $headerTag" else "오늘의 명언  ·  $headerTag",
             m + 36f * s,
             boxTop + 56f * s,
             textPaint
         )
 
-        val q1 = mainQuote
-        val tagText = q1?.tag ?: if (isEn) "Motivation" else "동기부여"
-        val tagRect = RectF(w - m - 230f * s, boxTop + 22f * s, w - m - 32f * s, boxTop + 66f * s)
-        drawCard(canvas, tagRect, 12f * s, Color.rgb(240, 240, 240), 2f * s)
-        textPaint.color = Color.rgb(40, 40, 40)
+        val catLabel = if (isEn) {
+            q1?.categoryEn?.ifBlank { "Classic Quote" } ?: "Classic Quote"
+        } else {
+            q1?.categoryKo?.ifBlank { "고전 명언" } ?: "고전 명언"
+        }
         textPaint.typeface = Typeface.DEFAULT_BOLD
         textPaint.textSize = 22f * s
-        val twTag = textPaint.measureText(tagText)
-        canvas.drawText(tagText, tagRect.centerX() - twTag / 2f, boxTop + 52f * s, textPaint)
+        val catW = textPaint.measureText(catLabel) + 36f * s
+        val tagRect = RectF(w - m - 32f * s - catW, boxTop + 22f * s, w - m - 32f * s, boxTop + 66f * s)
+        drawCard(canvas, tagRect, 12f * s, Color.rgb(24, 24, 24), 2f * s)
+        textPaint.color = Color.WHITE
+        canvas.drawText(catLabel, tagRect.left + 18f * s, boxTop + 52f * s, textPaint)
 
         strokePaint.color = Color.rgb(160, 160, 160)
         strokePaint.strokeWidth = 2f * s
@@ -524,60 +657,75 @@ class DashboardView(context: Context) : View(context) {
         textPaint.color = Color.rgb(160, 160, 160)
         textPaint.typeface = Typeface.DEFAULT_BOLD
         textPaint.textSize = 96f * s
-        canvas.drawText("“", m + 56f * s, boxTop + 188f * s, textPaint)
+        canvas.drawText("“", m + 56f * s, boxTop + 178f * s, textPaint)
 
         textPaint.color = Color.BLACK
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        textPaint.textSize = 44f * s
+        textPaint.textSize = 42f * s
         val maxTextW = w - 2f * m - 144f * s
         val mainBody = if (isEn) q1.textEn else q1.textKo
-        val lines = wrapText(mainBody, textPaint, maxTextW).take(4)
-        var qy = boxTop + 245f * s
+        val lines = wrapText(mainBody, textPaint, maxTextW).take(3)
+        var qy = boxTop + 230f * s
         for (line in lines) {
             canvas.drawText(line, m + 72f * s, qy, textPaint)
-            qy += 68f * s
+            qy += 64f * s
         }
 
+        val authorStr = if (isEn && q1.authorEn.isNotBlank()) q1.authorEn else q1.author
         textPaint.color = Color.rgb(70, 70, 70)
         textPaint.typeface = Typeface.DEFAULT
-        textPaint.textSize = 28f * s
-        canvas.drawText("— ${q1.author}", m + 72f * s, qy + 20f * s, textPaint)
+        textPaint.textSize = 27f * s
+        canvas.drawText("— $authorStr", m + 72f * s, qy + 16f * s, textPaint)
 
-        val q2 = subQuote
-        val subTop = boxTop + 560f * s
-        val subBot = boxBot - 36f * s
+        // Source · Background & Interpretation Box (replaces "오늘의 한 줄 점검")
+        val subTop = boxTop + 476f * s
+        val subBot = boxBot - 32f * s
         drawCard(canvas, RectF(m + 36f * s, subTop, w - m - 36f * s, subBot), 18f * s, Color.rgb(246, 246, 246), 2f * s)
 
-        textPaint.color = Color.rgb(60, 60, 60)
+        val badgeTitle = if (isEn) "Source · Context & Interpretation" else "작품 출처 · 배경 및 해석"
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        textPaint.textSize = 24f * s
-        canvas.drawText(if (isEn) "Daily Reflection" else "오늘의 한 줄 점검", m + 64f * s, subTop + 46f * s, textPaint)
+        textPaint.textSize = 22f * s
+        val badgeW = textPaint.measureText(badgeTitle) + 32f * s
+        drawCard(canvas, RectF(m + 62f * s, subTop + 20f * s, m + 62f * s + badgeW, subTop + 58f * s), 8f * s, Color.rgb(232, 232, 232), 1.5f * s)
+        textPaint.color = Color.rgb(20, 20, 20)
+        canvas.drawText(badgeTitle, m + 78f * s, subTop + 47f * s, textPaint)
 
-        if (q2 != null) {
-            textPaint.color = Color.BLACK
+        val innerTextW = w - 2f * m - 128f * s
+        var curY = subTop + 94f * s
+
+        val bgText = if (isEn) q1.backgroundEn else q1.backgroundKo
+        val interpText = if (isEn) q1.interpretationEn else q1.interpretationKo
+        val sections = listOf(
+            (if (isEn) "■ Context & Source" else "■ 작품 배경") to bgText,
+            (if (isEn) "■ Interpretation" else "■ 명대사 해석") to interpText
+        )
+
+        for ((secTitle, secBody) in sections) {
+            if (secBody.isBlank()) continue
+            textPaint.color = Color.rgb(20, 20, 20)
             textPaint.typeface = Typeface.DEFAULT_BOLD
-            textPaint.textSize = 28f * s
-            val subBody = if (isEn) q2.textEn else q2.textKo
-            val subLines = wrapText("“${subBody}”", textPaint, w - 2f * m - 128f * s).take(2)
-            var sy = subTop + 96f * s
-            for (sl in subLines) {
-                canvas.drawText(sl, m + 64f * s, sy, textPaint)
-                sy += 40f * s
-            }
-            textPaint.color = Color.rgb(80, 80, 80)
+            textPaint.textSize = 23f * s
+            canvas.drawText(secTitle, m + 64f * s, curY, textPaint)
+            curY += 34f * s
+
+            textPaint.color = Color.rgb(45, 45, 45)
             textPaint.typeface = Typeface.DEFAULT
             textPaint.textSize = 23f * s
-            canvas.drawText("— ${q2.author}", m + 64f * s, subBot - 68f * s, textPaint)
+            for (sLine in wrapText(secBody, textPaint, innerTextW).take(3)) {
+                canvas.drawText(sLine, m + 64f * s, curY, textPaint)
+                curY += 32f * s
+            }
+            curY += 12f * s
         }
 
         textPaint.color = Color.rgb(100, 100, 100)
         textPaint.typeface = Typeface.DEFAULT
-        textPaint.textSize = 21f * s
+        textPaint.textSize = 20f * s
         canvas.drawText(
             if (isEn) "· Use physical page buttons or tap bottom corners to switch pages."
             else "· 물리 페이지 버튼 또는 화면 하단 좌우를 눌러 페이지를 전환합니다.",
             m + 64f * s,
-            subBot - 28f * s,
+            subBot - 22f * s,
             textPaint
         )
     }
