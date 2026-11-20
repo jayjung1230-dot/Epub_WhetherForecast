@@ -1,5 +1,6 @@
 package com.ridipaper.weather.data
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.ridipaper.weather.model.BookItem
@@ -294,10 +295,176 @@ object ContentRepository {
         )
     )
 
-    fun fetchQuotes(language: String = "ko"): Pair<QuoteItem, QuoteItem> {
-        val i1 = Random.nextInt(CURATED_QUOTES.size)
-        val i2 = (i1 + 1 + Random.nextInt(CURATED_QUOTES.size - 1)) % CURATED_QUOTES.size
-        return CURATED_QUOTES[i1] to CURATED_QUOTES[i2]
+    private const val ROTATION_PREFS = "content_rotation_prefs"
+
+    @Volatile
+    private var cachedQuotes: List<QuoteItem>? = null
+
+    @Volatile
+    private var cachedBooks: List<BookItem>? = null
+
+    @Volatile
+    private var cachedMovies: List<MovieItem>? = null
+
+    private fun loadQuotesPool(context: Context?): List<QuoteItem> {
+        cachedQuotes?.let { return it }
+        if (context == null) return CURATED_QUOTES
+        return try {
+            val json = context.assets.open("quotes.json").bufferedReader().use { it.readText() }
+            val arr = JSONArray(json)
+            val list = ArrayList<QuoteItem>(arr.length())
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                list.add(
+                    QuoteItem(
+                        textKo = o.optString("textKo"),
+                        textEn = o.optString("textEn"),
+                        author = o.optString("author"),
+                        authorEn = o.optString("authorEn"),
+                        tag = o.optString("tag"),
+                        categoryKo = o.optString("categoryKo"),
+                        categoryEn = o.optString("categoryEn"),
+                        backgroundKo = o.optString("backgroundKo"),
+                        backgroundEn = o.optString("backgroundEn"),
+                        interpretationKo = o.optString("interpretationKo"),
+                        interpretationEn = o.optString("interpretationEn")
+                    )
+                )
+            }
+            if (list.isNotEmpty()) {
+                cachedQuotes = list
+                list
+            } else CURATED_QUOTES
+        } catch (_: Exception) {
+            CURATED_QUOTES
+        }
+    }
+
+    private fun loadBooksPool(context: Context?): List<BookItem> {
+        cachedBooks?.let { return it }
+        if (context == null) return CURATED_BOOKS
+        return try {
+            val json = context.assets.open("books.json").bufferedReader().use { it.readText() }
+            val arr = JSONArray(json)
+            val list = ArrayList<BookItem>(arr.length())
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                list.add(
+                    BookItem(
+                        titleKo = o.optString("titleKo"),
+                        titleEn = o.optString("titleEn"),
+                        authorKo = o.optString("authorKo"),
+                        authorEn = o.optString("authorEn"),
+                        publisherYear = o.optString("publisherYear"),
+                        genreKo = o.optString("genreKo"),
+                        genreEn = o.optString("genreEn"),
+                        rating = o.optString("rating"),
+                        pagesTimeKo = o.optString("pagesTimeKo"),
+                        pagesTimeEn = o.optString("pagesTimeEn"),
+                        summaryKo = o.optString("summaryKo"),
+                        summaryEn = o.optString("summaryEn"),
+                        quoteKo = o.optString("quoteKo"),
+                        quoteEn = o.optString("quoteEn"),
+                        keywordsKo = o.optString("keywordsKo"),
+                        keywordsEn = o.optString("keywordsEn"),
+                        coverUrl = o.optString("coverUrl")
+                    )
+                )
+            }
+            if (list.isNotEmpty()) {
+                cachedBooks = list
+                list
+            } else CURATED_BOOKS
+        } catch (_: Exception) {
+            CURATED_BOOKS
+        }
+    }
+
+    private fun loadMoviesPool(context: Context?): List<MovieItem> {
+        cachedMovies?.let { return it }
+        if (context == null) return CURATED_MOVIES
+        return try {
+            val json = context.assets.open("movies.json").bufferedReader().use { it.readText() }
+            val arr = JSONArray(json)
+            val list = ArrayList<MovieItem>(arr.length())
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                list.add(
+                    MovieItem(
+                        titleKo = o.optString("titleKo"),
+                        titleEn = o.optString("titleEn"),
+                        originalTitleYear = o.optString("originalTitleYear"),
+                        directorKo = o.optString("directorKo"),
+                        directorEn = o.optString("directorEn"),
+                        genreKo = o.optString("genreKo"),
+                        genreEn = o.optString("genreEn"),
+                        rating = o.optString("rating"),
+                        runtimeRatingKo = o.optString("runtimeRatingKo"),
+                        runtimeRatingEn = o.optString("runtimeRatingEn"),
+                        synopsisKo = o.optString("synopsisKo"),
+                        synopsisEn = o.optString("synopsisEn"),
+                        highlightKo = o.optString("highlightKo"),
+                        highlightEn = o.optString("highlightEn"),
+                        castOttKo = o.optString("castOttKo"),
+                        castOttEn = o.optString("castOttEn"),
+                        posterTitleTop = o.optString("posterTitleTop"),
+                        posterTitleBottom = o.optString("posterTitleBottom"),
+                        posterUrl = o.optString("posterUrl")
+                    )
+                )
+            }
+            if (list.isNotEmpty()) {
+                cachedMovies = list
+                list
+            } else CURATED_MOVIES
+        } catch (_: Exception) {
+            CURATED_MOVIES
+        }
+    }
+
+    @Synchronized
+    private fun nextRotatedIndex(context: Context?, key: String, size: Int): Int {
+        if (size <= 1) return 0
+        if (context == null) return Random.nextInt(size)
+        val prefs = context.getSharedPreferences(ROTATION_PREFS, Context.MODE_PRIVATE)
+        val orderKey = "${key}_order"
+        val posKey = "${key}_pos"
+        val lastKey = "${key}_last"
+
+        var order = prefs.getString(orderKey, null)
+            ?.split(",")
+            ?.mapNotNull { it.toIntOrNull() }
+            ?.filter { it in 0 until size }
+            ?: emptyList()
+        var pos = prefs.getInt(posKey, 0)
+        val lastIdx = prefs.getInt(lastKey, -1)
+
+        if (order.size != size || pos >= order.size) {
+            val fresh = (0 until size).toMutableList().apply { shuffle() }
+            if (fresh.size > 1 && fresh[0] == lastIdx) {
+                val swapIdx = 1 + Random.nextInt(fresh.size - 1)
+                val tmp = fresh[0]
+                fresh[0] = fresh[swapIdx]
+                fresh[swapIdx] = tmp
+            }
+            order = fresh
+            pos = 0
+        }
+
+        val chosen = order[pos]
+        prefs.edit()
+            .putString(orderKey, order.joinToString(","))
+            .putInt(posKey, pos + 1)
+            .putInt(lastKey, chosen)
+            .apply()
+        return chosen
+    }
+
+    fun fetchQuotes(context: Context? = null, language: String = "ko"): Pair<QuoteItem, QuoteItem> {
+        val pool = loadQuotesPool(context)
+        val i1 = nextRotatedIndex(context, "quotes", pool.size)
+        val i2 = nextRotatedIndex(context, "quotes", pool.size)
+        return pool[i1] to pool[if (i2 != i1 || pool.size == 1) i2 else (i1 + 1) % pool.size]
     }
 
     private val EN_NATIVE_NEWS_COUNTRIES = setOf(
@@ -694,9 +861,15 @@ object ContentRepository {
         )
     )
 
-    fun fetchBook(): BookItem = CURATED_BOOKS[Random.nextInt(CURATED_BOOKS.size)]
+    fun fetchBook(context: Context? = null): BookItem {
+        val pool = loadBooksPool(context)
+        return pool[nextRotatedIndex(context, "books", pool.size)]
+    }
 
-    fun fetchMovie(): MovieItem = CURATED_MOVIES[Random.nextInt(CURATED_MOVIES.size)]
+    fun fetchMovie(context: Context? = null): MovieItem {
+        val pool = loadMoviesPool(context)
+        return pool[nextRotatedIndex(context, "movies", pool.size)]
+    }
 
     fun fetchBitmap(urlStr: String, redirectsLeft: Int = 3): Bitmap? {
         if (urlStr.isBlank()) return null
@@ -986,7 +1159,24 @@ object ContentRepository {
         )
     )
 
-    fun fetchHistoryToday(): HistoryDayData {
+    private fun translateEnToKo(text: String): String? {
+        return try {
+            val url = "http://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=" +
+                URLEncoder.encode(text, "UTF-8")
+            val body = WeatherRepository.httpGet(url)
+            val arr = JSONArray(body).getJSONArray(0)
+            val sb = StringBuilder()
+            for (i in 0 until arr.length()) {
+                val seg = arr.optJSONArray(i)?.optString(0).orEmpty()
+                sb.append(seg)
+            }
+            sb.toString().trim().ifEmpty { null }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    fun fetchHistoryToday(language: String = "ko"): HistoryDayData {
         val cal = Calendar.getInstance()
         val month = cal.get(Calendar.MONTH) + 1
         val day = cal.get(Calendar.DAY_OF_MONTH)
@@ -1015,10 +1205,11 @@ object ContentRepository {
                     val year = ev.optString("year", "").trim()
                     val text = ev.optString("text", "").trim()
                     if (year.isNotEmpty() && text.isNotEmpty()) {
+                        val koTitle = if (language == "ko") (translateEnToKo(text) ?: text) else text
                         picked.add(
                             HistoryEventItem(
                                 year = year,
-                                titleKo = text,
+                                titleKo = koTitle,
                                 titleEn = text,
                                 detailKo = "${year}년 오늘($dateKo)에 일어난 주요 역사적 사건입니다.",
                                 detailEn = "Recorded historical event on $dateEn, $year."

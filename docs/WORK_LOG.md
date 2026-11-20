@@ -57,3 +57,7 @@
   - 하단 페이지 자동 전환 선택지를 `사용 안 함`, `1분`, `3분`, `5분`, `10분`으로 정리
   - `오늘의 영단어 · 문장` 및 `오늘의 역사 · 사건` 데이터 로더와 설정 ON/OFF 토글 스위치 추가
 - `docs/INSTALL_GUIDE.md` & `README.md`: 리디북스 페이퍼 프로 기준 ADB/USB 단계별 설치 가이드 작성 및 전체 문서 현행화
+
+## 9. 명언·책·영화 500개 확장 및 중복 없는 셔플 순환 (2026-11-21)
+- `app/src/main/assets/quotes.json`, `books.json`, `movies.json`: 각 **500건**씩 총 1,500건 데이터셋 구축 (책 표지 500권·영화 포스터 500편 URL 전수 `200 OK` 검증 완료)
+- `data/ContentRepository.kt` & `MainActivity.kt`: `SharedPreferences`(`content_rotation_prefs`) 기반 비복원 셔플 순환 적용 — `[새로고침]` 및 자동 갱신마다 500건을 다 보기 전까지 중복 없이 새로운 명언·책·영화로 교체되도록 개선

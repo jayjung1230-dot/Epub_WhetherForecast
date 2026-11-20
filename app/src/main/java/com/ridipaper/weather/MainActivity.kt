@@ -298,8 +298,9 @@ class MainActivity : Activity(), DashboardView.Listener {
 
             val newsCountry = fetchedWeather?.countryCode ?: fallbackCountry
 
+            val appCtx = applicationContext
             val fetchedQuotes = try {
-                ContentRepository.fetchQuotes(snapshot.language)
+                ContentRepository.fetchQuotes(appCtx, snapshot.language)
             } catch (_: Exception) {
                 null
             }
@@ -310,13 +311,13 @@ class MainActivity : Activity(), DashboardView.Listener {
                 null
             }
 
-            val fetchedBook = ContentRepository.fetchBook()
+            val fetchedBook = ContentRepository.fetchBook(appCtx)
             val fetchedBookBmp = ContentRepository.fetchBitmap(fetchedBook.coverUrl)
-            val fetchedMovie = ContentRepository.fetchMovie()
+            val fetchedMovie = ContentRepository.fetchMovie(appCtx)
             val fetchedMovieBmp = ContentRepository.fetchBitmap(fetchedMovie.posterUrl)
             val fetchedEconomy = ContentRepository.fetchEconomyIndicators()
             val fetchedEnglish = ContentRepository.fetchEnglishStudy()
-            val fetchedHistory = ContentRepository.fetchHistoryToday()
+            val fetchedHistory = ContentRepository.fetchHistoryToday(snapshot.language)
 
             handler.post {
                 isFetching = false
@@ -332,9 +333,9 @@ class MainActivity : Activity(), DashboardView.Listener {
                     newsList = fetchedNews
                 }
                 bookItem = fetchedBook
-                if (fetchedBookBmp != null) bookBitmap = fetchedBookBmp
+                bookBitmap = fetchedBookBmp
                 movieItem = fetchedMovie
-                if (fetchedMovieBmp != null) movieBitmap = fetchedMovieBmp
+                movieBitmap = fetchedMovieBmp
                 if (fetchedEconomy.isNotEmpty()) {
                     economyList = fetchedEconomy
                 }
