@@ -1132,9 +1132,9 @@ class DashboardView(context: Context) : View(context) {
 
         // Left Book Cover
         val covX1 = m + 48f * s
-        val covY1 = boxTop + 124f * s
-        val covW = 330f * s
-        val covH = 480f * s
+        val covY1 = boxTop + 110f * s
+        val covW = 310f * s
+        val covH = 440f * s
         val covX2 = covX1 + covW
         val covY2 = covY1 + covH
 
@@ -1226,38 +1226,45 @@ class DashboardView(context: Context) : View(context) {
         textPaint.color = Color.rgb(20, 20, 20)
         textPaint.typeface = Typeface.DEFAULT_BOLD
         textPaint.textSize = 24f * s
-        canvas.drawText(if (isEn) "■ About & Why Read" else "■ 책 소개 & 추천 이유", rx, covY1 + 206f * s, textPaint)
+        canvas.drawText(if (isEn) "■ About This Book" else "■ 책 소개", rx, covY1 + 196f * s, textPaint)
 
         textPaint.color = Color.rgb(45, 45, 45)
         textPaint.typeface = Typeface.DEFAULT
-        textPaint.textSize = 24f * s
-        var cy = covY1 + 248f * s
-        for (line in wrapText(if (isEn) bk.summaryEn else bk.summaryKo, textPaint, maxRw).take(4)) {
+        textPaint.textSize = 23f * s
+        var cy = covY1 + 236f * s
+        for (line in wrapText(if (isEn) bk.summaryEn else bk.summaryKo, textPaint, maxRw).take(7)) {
             canvas.drawText(line, rx, cy, textPaint)
-            cy += 34f * s
+            cy += 32f * s
         }
 
-        val qTop = covY1 + 392f * s
-        drawCard(canvas, RectF(rx, qTop, w - m - 44f * s, covY2), 14f * s, Color.rgb(246, 246, 246), 2f * s)
-        textPaint.color = Color.rgb(80, 80, 80)
+        // Full-width Recommendation Reason Card below cover
+        val qTop = covY2 + 24f * s
+        val qBot = boxBot - 88f * s
+        drawCard(canvas, RectF(m + 48f * s, qTop, w - m - 48f * s, qBot), 14f * s, Color.rgb(246, 246, 246), 2f * s)
+        textPaint.color = Color.rgb(40, 40, 40)
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        textPaint.textSize = 20f * s
-        canvas.drawText(if (isEn) "Notable Line" else "책 속의 한 문장", rx + 22f * s, qTop + 32f * s, textPaint)
+        textPaint.textSize = 22f * s
+        canvas.drawText(if (isEn) "■ Why We Recommend It" else "■ 추천 이유", m + 72f * s, qTop + 34f * s, textPaint)
 
         textPaint.color = Color.BLACK
-        textPaint.typeface = Typeface.DEFAULT_BOLD
-        textPaint.textSize = 24f * s
-        val qStr = "“${if (isEn) bk.quoteEn else bk.quoteKo}”"
-        canvas.drawText(ellipsizeText(qStr, textPaint, maxRw - 44f * s), rx + 22f * s, qTop + 68f * s, textPaint)
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.textSize = 23f * s
+        val qText = if (isEn) bk.quoteEn else bk.quoteKo
+        val fullCardW = (w - m - 48f * s) - (m + 48f * s) - 48f * s
+        var qy = qTop + 72f * s
+        for (line in wrapText(qText, textPaint, fullCardW).take(3)) {
+            canvas.drawText(line, m + 72f * s, qy, textPaint)
+            qy += 33f * s
+        }
 
         strokePaint.color = Color.rgb(210, 210, 210)
         strokePaint.strokeWidth = 2f * s
-        canvas.drawLine(m + 48f * s, boxBot - 104f * s, w - m - 48f * s, boxBot - 104f * s, strokePaint)
+        canvas.drawLine(m + 48f * s, boxBot - 68f * s, w - m - 48f * s, boxBot - 68f * s, strokePaint)
         textPaint.color = Color.rgb(70, 70, 70)
         textPaint.typeface = Typeface.DEFAULT
-        textPaint.textSize = 23f * s
+        textPaint.textSize = 22f * s
         val kwPrefix = if (isEn) "· Keywords: " else "· 추천 키워드: "
-        canvas.drawText(kwPrefix + (if (isEn) bk.keywordsEn else bk.keywordsKo), m + 48f * s, boxBot - 52f * s, textPaint)
+        canvas.drawText(ellipsizeText(kwPrefix + (if (isEn) bk.keywordsEn else bk.keywordsKo), textPaint, fullCardW), m + 48f * s, boxBot - 30f * s, textPaint)
     }
 
     private fun drawMoviePage(canvas: Canvas, w: Float, m: Float, s: Float) {
@@ -1295,9 +1302,9 @@ class DashboardView(context: Context) : View(context) {
 
         // Left Movie Poster
         val px1 = m + 48f * s
-        val py1 = boxTop + 124f * s
-        val pw = 330f * s
-        val ph = 480f * s
+        val py1 = boxTop + 110f * s
+        val pw = 310f * s
+        val ph = 440f * s
         val px2 = px1 + pw
         val py2 = py1 + ph
         drawCard(canvas, RectF(px1, py1, px2, py2), 14f * s, Color.rgb(22, 22, 22), 3f * s)
@@ -1380,36 +1387,45 @@ class DashboardView(context: Context) : View(context) {
         textPaint.color = Color.rgb(20, 20, 20)
         textPaint.typeface = Typeface.DEFAULT_BOLD
         textPaint.textSize = 24f * s
-        canvas.drawText(if (isEn) "■ Synopsis & Highlights" else "■ 작품 줄거리 & 감상 포인트", rx, py1 + 202f * s, textPaint)
+        canvas.drawText(if (isEn) "■ Synopsis" else "■ 작품 줄거리", rx, py1 + 196f * s, textPaint)
 
         textPaint.color = Color.rgb(45, 45, 45)
         textPaint.typeface = Typeface.DEFAULT
-        textPaint.textSize = 24f * s
-        var cy = py1 + 244f * s
-        for (line in wrapText(if (isEn) mv.synopsisEn else mv.synopsisKo, textPaint, maxRw).take(4)) {
+        textPaint.textSize = 23f * s
+        var cy = py1 + 236f * s
+        for (line in wrapText(if (isEn) mv.synopsisEn else mv.synopsisKo, textPaint, maxRw).take(7)) {
             canvas.drawText(line, rx, cy, textPaint)
-            cy += 34f * s
+            cy += 32f * s
         }
 
-        val qTop = py1 + 392f * s
-        drawCard(canvas, RectF(rx, qTop, w - m - 44f * s, py2), 14f * s, Color.rgb(246, 246, 246), 2f * s)
-        textPaint.color = Color.rgb(80, 80, 80)
+        // Full-width Recommendation Reason Card below poster
+        val qTop = py2 + 24f * s
+        val qBot = boxBot - 88f * s
+        drawCard(canvas, RectF(m + 48f * s, qTop, w - m - 48f * s, qBot), 14f * s, Color.rgb(246, 246, 246), 2f * s)
+        textPaint.color = Color.rgb(40, 40, 40)
         textPaint.typeface = Typeface.DEFAULT_BOLD
-        textPaint.textSize = 20f * s
-        canvas.drawText(if (isEn) "Why Watch" else "추천 관람 포인트", rx + 22f * s, qTop + 32f * s, textPaint)
+        textPaint.textSize = 22f * s
+        canvas.drawText(if (isEn) "■ Why Watch & Highlights" else "■ 추천 이유 & 감상 포인트", m + 72f * s, qTop + 34f * s, textPaint)
 
         textPaint.color = Color.BLACK
-        textPaint.typeface = Typeface.DEFAULT_BOLD
+        textPaint.typeface = Typeface.DEFAULT
         textPaint.textSize = 23f * s
-        canvas.drawText(ellipsizeText(if (isEn) mv.highlightEn else mv.highlightKo, textPaint, maxRw - 44f * s), rx + 22f * s, qTop + 68f * s, textPaint)
+        val hlText = if (isEn) mv.highlightEn else mv.highlightKo
+        val fullCardW = (w - m - 48f * s) - (m + 48f * s) - 48f * s
+        var qy = qTop + 72f * s
+        for (line in wrapText(hlText, textPaint, fullCardW).take(3)) {
+            canvas.drawText(line, m + 72f * s, qy, textPaint)
+            qy += 33f * s
+        }
 
         strokePaint.color = Color.rgb(210, 210, 210)
         strokePaint.strokeWidth = 2f * s
-        canvas.drawLine(m + 48f * s, boxBot - 104f * s, w - m - 48f * s, boxBot - 104f * s, strokePaint)
+        canvas.drawLine(m + 48f * s, boxBot - 68f * s, w - m - 48f * s, boxBot - 68f * s, strokePaint)
         textPaint.color = Color.rgb(70, 70, 70)
         textPaint.typeface = Typeface.DEFAULT
-        textPaint.textSize = 23f * s
-        canvas.drawText("· " + (if (isEn) mv.castOttEn else mv.castOttKo), m + 48f * s, boxBot - 52f * s, textPaint)
+        textPaint.textSize = 22f * s
+        val castStr = if (isEn) mv.castOttEn else mv.castOttKo
+        canvas.drawText(ellipsizeText("· $castStr", textPaint, fullCardW), m + 48f * s, boxBot - 30f * s, textPaint)
     }
 
     private fun drawEconomyPage(canvas: Canvas, w: Float, m: Float, s: Float) {
