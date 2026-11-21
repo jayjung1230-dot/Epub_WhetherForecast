@@ -7,8 +7,9 @@ import java.io.File
 import java.io.FileOutputStream
 
 /**
- * Manages backing up the Ridibooks Paper Pro's original sleep screen and
- * applying/restoring the captured weather dashboard as /cache/sleep/suspend.jpg.
+ * Manages backing up the Ridibooks Paper Pro's original sleep screen,
+ * applying/restoring the captured weather dashboard as /cache/sleep/suspend.jpg,
+ * and safely putting the awake device into sleep mode on keep-screen-on timeout.
  */
 object SleepScreenManager {
     private const val PREFS_NAME = "sleep_screen_backup"
@@ -43,7 +44,7 @@ object SleepScreenManager {
         val (_, sleepPath) = runSu("settings get system sleepscreen_file_path")
         val safePath = backupFile.absolutePath
         val (copied, _) = runSu(
-            "if [ -f $TARGET_SLEEP_PATH ]; then cp $TARGET_SLEEP_PATH '$safePath' && chmod 644 '$safePath'; fi"
+            "if [ -f $TARGET_SLEEP_PATH ]; then cat $TARGET_SLEEP_PATH > '$safePath' && chmod 644 '$safePath' && sync; fi"
         )
         if (!copied) return false
 
@@ -82,26 +83,42 @@ object SleepScreenManager {
             val stagedFile = File(context.filesDir, "dashboard_suspend.jpg")
             FileOutputStream(stagedFile).use { fos ->
                 finalBmp.compress(Bitmap.CompressFormat.JPEG, 92, fos)
+                fos.fd.sync()
             }
+            stagedFile.setReadable(true, false)
 
             val stagedPath = stagedFile.absolutePath
-            val (ok, _) = runSu(
-                "cp '$stagedPath' $TARGET_SLEEP_PATH && " +
+            val cmd =
+                "cat '$stagedPath' > $TARGET_SLEEP_PATH && " +
                     "chown system:system $TARGET_SLEEP_PATH && " +
                     "chmod 644 $TARGET_SLEEP_PATH && " +
-                    "setprop persist.sys.standbytype 0"
-            )
+                    "setprop persist.sys.standbytype 0 && " +
+                    "sync"
+            var (ok, _) = runSu(cmd)
+            if (!ok) {
+                Thread.sleep(200L)
+                ok = runSu(cmd).first
+            }
             ok
         } catch (_: Exception) {
             false
         } finally {
             if (scaled != null && scaled !== rotated && scaled !== viewBitmap) {
-                scaled?.recycle()
+                scaled.recycle()
             }
             if (rotated != null && rotated !== viewBitmap) {
-                rotated?.recycle()
+                rotated.recycle()
             }
         }
+    }
+
+    /**
+     * Sends KEYCODE_POWER only if the device is currently Awake, so it enters
+     * sleep mode immediately without ever accidentally waking a sleeping device.
+     */
+    fun goToSleepNow(): Boolean {
+        val (ok, _) = runSu("dumpsys power | grep -q 'mWakefulness=Awake' && input keyevent 26")
+        return ok
     }
 
     @Synchronized
@@ -118,7 +135,7 @@ object SleepScreenManager {
         val cmds = StringBuilder()
         if (backupFile.exists()) {
             val safePath = backupFile.absolutePath
-            cmds.append("cp '$safePath' $TARGET_SLEEP_PATH && ")
+            cmds.append("cat '$safePath' > $TARGET_SLEEP_PATH && ")
             cmds.append("chown system:system $TARGET_SLEEP_PATH && ")
             cmds.append("chmod 600 $TARGET_SLEEP_PATH && ")
         }
@@ -126,6 +143,7 @@ object SleepScreenManager {
         if (origPath.isNotBlank()) {
             cmds.append(" && settings put system sleepscreen_file_path '$origPath'")
         }
+        cmds.append(" && sync")
 
         val (ok, _) = runSu(cmds.toString())
         if (ok) {

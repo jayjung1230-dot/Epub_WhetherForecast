@@ -93,6 +93,7 @@ class MainActivity : Activity(), DashboardView.Listener {
             val now = System.currentTimeMillis()
             if (keepAliveDeadlineMs > 0L && now >= keepAliveDeadlineMs) {
                 onKeepAliveExpired()
+                return
             }
             val refreshMs = settings.refreshIntervalMinutes * 60_000L
             if (isWifiConnected() && now - lastFetchMs >= refreshMs) {
@@ -175,14 +176,17 @@ class MainActivity : Activity(), DashboardView.Listener {
                 @Suppress("DEPRECATION")
                 wakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK, "PaperProWeather:KeepOn")
             }
-            if (wakeLock?.isHeld == false) {
-                wakeLock?.acquire(durationMs)
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
             }
+            wakeLock?.acquire(durationMs)
         } catch (_: Exception) {
         }
     }
 
     private fun onKeepAliveExpired() {
+        keepAliveDeadlineMs = 0L
+        handler.removeCallbacks(tickRunnable)
         releaseKeepScreenOn()
         if (settings.useDashboardAsSleepScreen &&
             !sleepScreenAppliedForSession &&
@@ -205,9 +209,17 @@ class MainActivity : Activity(), DashboardView.Listener {
                     } finally {
                         bmp.recycle()
                     }
+                    try {
+                        Thread.sleep(250L)
+                    } catch (_: InterruptedException) {
+                    }
+                    SleepScreenManager.goToSleepNow()
                 }
             } catch (_: Exception) {
+                thread { SleepScreenManager.goToSleepNow() }
             }
+        } else {
+            thread { SleepScreenManager.goToSleepNow() }
         }
     }
 
