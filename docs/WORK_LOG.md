@@ -64,5 +64,5 @@
 
 ## 10. 절전/대기화면 안정화 및 책·영화 실제 평론/상세 줄거리 개편 (2026-11-21)
 - `MainActivity.kt` & `util/SleepScreenManager.kt`: 화면 유지 시간 만료 시 `WakeLock`/`FLAG_KEEP_SCREEN_ON` 해제, `/cache/sleep/suspend.jpg` 안정적 복사·동기화 후 `mWakefulness=Awake` 조건부 `input keyevent 26`으로 즉시 절전 진입하도록 수정
-- `assets/books.json` (123권) & `assets/movies.json` (103편): 반복 템플릿 문구를 전면 제거하고 Wikipedia 실제 상세 줄거리(2배 분량)와 실제 평론가·관객 평가(`Reception`/`Critical response`) 한국어 번역으로 전면 교체
+- `assets/books.json` (500권) & `assets/movies.json` (500편): 반복 템플릿 문구를 전면 제거하고 Wikipedia 실제 상세 줄거리(2배 분량)와 실제 평론가·관객 평가(`Reception`/`Critical response`) 한국어 번역으로 전면 교체·확장
 - `ui/DashboardView.kt`: `drawFlowingText`를 도입해 표지/포스터 오른쪽(5줄) + 하단 전체 폭(4줄)으로 이어지는 상세 줄거리와 4줄 실제 평론가·관객 평가 카드 레이아웃 적용
